@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scrum Poker</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.2/dist/semantic.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.2/dist/semantic.min.js"></script>
+    <style>
+        body {
+            padding: 20px;
+            max-width: 900px;
+            margin: auto;
+        }
+
+        .vote {
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        #averageVote {
+            font-weight: bold;
+            margin-top: 15px;
+            font-size: 1.2em;
+        }
+
+        .voted-row {
+            background-color: #e8fce8 !important;
+            transition: background-color 0.5s ease;
+        }
+
+        .ui.list > .item {
+            display: flex;
+            gap: 1em;
+            padding: 1em 0 !important;
+        }
+
+        .ui.list > .item > .image {
+            font-size: 1.8em;
+        }
+
+        .content.flex-center {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            line-height: 1.2;
+        }
+    </style>
+</head>
+<body>
+<h2 class="ui header">Скрум Покер Онлине</h2>
+<div class="ui basic segment" id="common">
+    <div class="ui form">
+        <div class="fields">
+            <div class="ten wide field">
+                <input type="text" id="playerName" placeholder="Ваше имя">
+            </div>
+            <div class="two wide field">
+                <div class="ui checkbox" style="margin-top: .6em;">
+                    <input type="checkbox" id="isAdmin">
+                    <label>Я админ</label>
+                </div>
+            </div>
+            <div class="four wide field">
+                <div class="ui buttons">
+                    <button class="ui  primary button" id="joinBtn">Коннект</button>
+                    <button class="ui orange button" id="changeNameBtn">Изменить имя</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="adminControls" class="ui big buttons" style="display:none; margin: 10px 0;">
+        <button class="ui green button" id="revealBtn">Показать</button>
+        <button class="ui red button" id="resetBtn">Сбросить</button>
+    </div>
+
+    <div id="currentAdmin" class="ui grey text"></div>
+
+    <div id="voteButtons" class="ui big buttons" style="margin-bottom: 15px; display: none;"></div>
+    <div class="ui big divided list" id="players"></div>
+
+    <div class="right ui rail">
+        <div class="ui sticky">
+            <div class="ui circular segment" id="averageVote">
+                <h2 class="ui header">
+                    <averageVote>-</averageVote>
+                    <div class="sub header">Средняя оценка</div>
+                </h2>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    const socket = io('function-bun-production-ae0c.up.railway.app:3000');
+    const roomId = 'default-room';
+    let name = '';
+    let revealed = false;
+    let isAdmin = false;
+
+    const points = ["1", "2", "3", "5", "8", "13", "20", "40", "?"];
+    const emojiList = ['😀', '🦊', '🐸', '🐱', '🐶', '🐵', '🐧', '🐼', '🐯', '🦁', '🐻', '🐨', '🦄', '🐢', '🐙', '🐞'];
+
+    function getEmoji(name) {
+        const hash = Array.from(name).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        return emojiList[hash % emojiList.length];
+    }
+
+    $('.ui.sticky')
+        .sticky({
+            context: '#common',
+            pushing: true
+        })
+    ;
+
+    function joinSession(newName, newIsAdmin) {
+        name = newName;
+        isAdmin = newIsAdmin;
+        localStorage.setItem('pokerName', name);
+        localStorage.setItem('pokerAdmin', isAdmin);
+        socket.emit('join', {roomId, name, isAdmin});
+        $('#playerName').val(name);
+        $('#isAdmin').prop('checked', isAdmin).prop('disabled', true);
+        $('#joinBtn').prop('disabled', true);
+        if (isAdmin) $('#adminControls').show();
+    }
+
+    $(document).ready(() => {
+        $('.ui.checkbox').checkbox();
+        const savedName = localStorage.getItem('pokerName');
+        const savedAdmin = localStorage.getItem('pokerAdmin') === 'true';
+        if (savedName) {
+            joinSession(savedName, savedAdmin);
+        }
+    });
+
+    $('#joinBtn').click(() => {
+        const newName = $('#playerName').val().trim();
+        const newIsAdmin = $('#isAdmin').is(':checked');
+        if (newName) {
+            joinSession(newName, newIsAdmin);
+        }
+    });
+
+    $('#changeNameBtn').click(() => {
+        localStorage.removeItem('pokerName');
+        localStorage.removeItem('pokerAdmin');
+        location.reload();
+    });
+
+    $('#revealBtn').click(() => {
+        if (isAdmin) socket.emit('reveal', roomId);
+    });
+
+    $('#resetBtn').click(() => {
+        if (isAdmin) socket.emit('reset', roomId);
+    });
+
+    function renderPlayers(players) {
+        $('#players').empty();
+        $('#voteButtons').empty().hide();
+
+        const admin = players.find(p => p.isAdmin);
+        $('#currentAdmin').text(admin ? `Current Admin: ${admin.name}` : '');
+        const numericVotes = [];
+
+        const current = players.find(p => p.name === name);
+        if (current && !revealed) {
+            points.forEach(p => {
+                const btn = $(`<button class="ui big button">${p}</button>`);
+                btn.click(() => {
+                    if (!revealed) {
+                        socket.emit('vote', {roomId, value: p});
+                    }
+                });
+                if (current.vote === p) btn.addClass('blue');
+                $('#voteButtons').append(btn);
+            });
+            $('#voteButtons').show();
+        }
+        // players.push(
+        //     { name: 'Вы', vote: current ? current.vote : '', isAdmin: current ? current.isAdmin : false },
+        //     { name: 'Average', vote: '', isAdmin: false },
+        //     { name: 'Total', vote: '', isAdmin: false },
+        //     { name: 'Revealed', vote: revealed ? 'Yes' : 'No', isAdmin: false },
+        //     { name: 'Room ID', vote: roomId, isAdmin: false },
+        //     { name: 'Players Count', vote: players.length, isAdmin: false }
+        //
+        // )
+        players.forEach(player => {
+            const voted = Boolean(player.vote);
+            const item = $(`<div class="item${voted ? ' voted-row' : ''}"></div>`);
+            const emoji = getEmoji(player.name);
+            const avatar = $(`<div class="ui avatar image">${emoji}</div>`);
+            const content = $('<div class="content flex-center"></div>');
+            const header = $(`<div class="header">${player.name}${player.isAdmin ? ' (admin)' : ''}</div>`);
+            const extra = $('<div class="description"></div>');
+
+            if (revealed && player.vote) {
+                extra.append(`<div class="vote">Голос: ${player.vote}</div>`);
+                if (!isNaN(player.vote)) {
+                    numericVotes.push(parseFloat(player.vote));
+                }
+            } else if (player.name === name && player.vote) {
+                extra.append(`<div class="vote">Вы выбрали: ${player.vote}</div>`);
+            } else if (player.vote) {
+                // extra.append(`<div class="vote">Голос скрыт</div>`);
+            }
+
+            content.append(header).append(extra);
+            item.append(avatar).append(content).hide().fadeIn(400);
+            $('#players').append(item);
+        });
+
+        if (revealed && numericVotes.length > 0) {
+            const avg = numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length;
+            //округлить avg до значений из points
+            const roundedAvg = points.reduce((prev, curr) => Math.abs(curr - avg) < Math.abs(prev - avg) ? curr : prev);
+
+            $('#averageVote')
+                .transition('pulse')
+            ;
+            $('averageVote').text(`${roundedAvg}`);
+        } else {
+            $('averageVote').text('-');
+        }
+    }
+
+    socket.on('players_update', players => {
+        renderPlayers(players);
+    });
+
+    socket.on('votes_update', players => {
+        renderPlayers(players);
+    });
+
+    socket.on('reveal_update', state => {
+        revealed = state;
+        socket.emit('get_players', roomId);
+    });
+</script>
+</body>
+</html>
