@@ -9,16 +9,32 @@ const io = new Server(server, {
 });
 
 const rooms = {};
-
+const notes = {}; // roomId -> note
 io.on('connection', (socket) => {
-    socket.on('join', ({ roomId, name }) => {
+
+    socket.on('note_update', ({ roomId, note }) => {
+        notes[roomId] = note;
+        socket.to(roomId).emit('note_update', note); // рассылаем всем, кроме отправителя
+    });
+
+    socket.on('join', ({ roomId, name, isAdmin }) => {
         socket.join(roomId);
         if (!rooms[roomId]) {
             rooms[roomId] = { players: {}, revealed: false };
         }
 
-        rooms[roomId].players[socket.id] = { name, vote: null };
+        // проверяем, если админ уже есть
+        const alreadyHasAdmin = Object.values(rooms[roomId].players).some(p => p.isAdmin);
+        if (isAdmin && alreadyHasAdmin) {
+            isAdmin = false; // сбрасываем роль
+        }
+
+        rooms[roomId].players[socket.id] = { name, vote: null, isAdmin };
         io.to(roomId).emit('players_update', Object.values(rooms[roomId].players));
+
+        if (notes[roomId]) {
+            socket.emit('note_update', notes[roomId]);
+        }
     });
 
     socket.on('vote', ({ roomId, value }) => {
@@ -61,6 +77,12 @@ io.on('connection', (socket) => {
             io.to(roomId).emit('players_update', Object.values(room.players));
         }
     });
+
+    socket.on('request_admin_status', (roomId, callback) => {
+        const alreadyHasAdmin = rooms[roomId] && Object.values(rooms[roomId].players).some(p => p.isAdmin);
+        callback(!alreadyHasAdmin);
+    });
+
 
 });
 

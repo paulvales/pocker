@@ -41,16 +41,43 @@
             font-size: 1.8em;
         }
 
+        .ui.avatar.image.initials {
+            background: #ccc;
+            color: #000;
+            font-weight: bold;
+            text-align: center;
+            border-radius: .5em;
+            width: 2.5em;
+            height: 2.3em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            padding: 0 !important;
+        }
+
         .content.flex-center {
             display: flex;
             flex-direction: column;
             justify-content: center;
             line-height: 1.2;
         }
+
+        @media (max-width: 600px) {
+            .ui.form .fields {
+                flex-direction: column !important;
+            }
+            .ui.form .field, .ui.buttons {
+                width: 100% !important;
+                display: flex !important;
+                justify-content: center;
+                margin-bottom: 10px;
+            }
+        }
     </style>
 </head>
 <body>
-<h2 class="ui header">Скрум Покер Онлине</h2>
+<h2 class="ui header">Скрум Покер Онлине   <div class="ui left pointing label" id="currentAdmin" ></div></h2>
 <div class="ui basic segment" id="common">
     <div class="ui form">
         <div class="fields">
@@ -65,7 +92,7 @@
             </div>
             <div class="four wide field">
                 <div class="ui buttons">
-                    <button class="ui  primary button" id="joinBtn">Коннект</button>
+                    <button class="ui primary button" id="joinBtn">Коннект</button>
                     <button class="ui orange button" id="changeNameBtn">Изменить имя</button>
                 </div>
             </div>
@@ -77,7 +104,14 @@
         <button class="ui red button" id="resetBtn">Сбросить</button>
     </div>
 
-    <div id="currentAdmin" class="ui grey text"></div>
+    <div class="ui form" id="adminNoteForm" style="display:none;">
+        <div class="field">
+            <label>Сообщение участникам:</label>
+            <input type="text" id="adminNote" placeholder="Введите сообщение...">
+        </div>
+    </div>
+
+    <div class="ui message" id="noteDisplay"></div>
 
     <div id="voteButtons" class="ui big buttons" style="margin-bottom: 15px; display: none;"></div>
     <div class="ui big divided list" id="players"></div>
@@ -93,27 +127,22 @@
         </div>
     </div>
 </div>
+<input type="hidden" id="averageVote1">
 <script>
-    const socket = io('pocker-production.up.railway.app');
+    // const socket = io('pocker-production.up.railway.app');
+    const socket = io('http://localhost:3000');
     const roomId = 'default-room';
     let name = '';
     let revealed = false;
     let isAdmin = false;
 
     const points = ["1", "2", "3", "5", "8", "13", "20", "40", "?"];
-    const emojiList = ['😀', '🦊', '🐸', '🐱', '🐶', '🐵', '🐧', '🐼', '🐯', '🦁', '🐻', '🐨', '🦄', '🐢', '🐙', '🐞'];
 
-    function getEmoji(name) {
-        const hash = Array.from(name).reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        return emojiList[hash % emojiList.length];
+    function getInitials(name) {
+        return name.trim().split(' ').map(w => w.charAt(0).toUpperCase()).join('').slice(0, 2);
     }
 
-    $('.ui.sticky')
-        .sticky({
-            context: '#common',
-            pushing: true
-        })
-    ;
+    $('.ui.sticky').sticky({ context: '#common', pushing: true });
 
     function joinSession(newName, newIsAdmin) {
         name = newName;
@@ -124,23 +153,35 @@
         $('#playerName').val(name);
         $('#isAdmin').prop('checked', isAdmin).prop('disabled', true);
         $('#joinBtn').prop('disabled', true);
-        if (isAdmin) $('#adminControls').show();
+        if (isAdmin) {
+            $('#adminControls').show();
+            $('#adminNoteForm').show();
+            $('#noteDisplay').hide();
+        }
     }
 
     $(document).ready(() => {
         $('.ui.checkbox').checkbox();
         const savedName = localStorage.getItem('pokerName');
         const savedAdmin = localStorage.getItem('pokerAdmin') === 'true';
-        if (savedName) {
-            joinSession(savedName, savedAdmin);
-        }
+        if (savedName) joinSession(savedName, savedAdmin);
     });
 
     $('#joinBtn').click(() => {
         const newName = $('#playerName').val().trim();
         const newIsAdmin = $('#isAdmin').is(':checked');
         if (newName) {
-            joinSession(newName, newIsAdmin);
+            if (newIsAdmin) {
+                socket.emit('request_admin_status', roomId, canJoin => {
+                    if (!canJoin) {
+                        alert('Админ уже существует. Вы не можете стать вторым.');
+                        return;
+                    }
+                    joinSession(newName, newIsAdmin);
+                });
+            } else {
+                joinSession(newName, newIsAdmin);
+            }
         }
     });
 
@@ -158,55 +199,51 @@
         if (isAdmin) socket.emit('reset', roomId);
     });
 
+    $('#adminNote').on('input keydown change', function() {
+        const note = $(this).val();
+        socket.emit('note_update', { roomId, note });
+    });
+
+    function calcAvg(numericVotes) {
+        return (numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length).toFixed(0);
+    }
+
     function renderPlayers(players) {
         $('#players').empty();
         $('#voteButtons').empty().hide();
 
         const admin = players.find(p => p.isAdmin);
-        $('#currentAdmin').text(admin ? `Current Admin: ${admin.name}` : '');
+        $('#currentAdmin').text(admin ? `Текущий админ: ${admin.name}` : '');
         const numericVotes = [];
 
         const current = players.find(p => p.name === name);
-        if (current && !revealed) {
+        if (current) {
             points.forEach(p => {
                 const btn = $(`<button class="ui big button">${p}</button>`);
-                btn.click(() => {
-                    if (!revealed) {
-                        socket.emit('vote', {roomId, value: p});
-                    }
-                });
+                btn.click(() => socket.emit('vote', {roomId, value: p}));
                 if (current.vote === p) btn.addClass('blue');
                 $('#voteButtons').append(btn);
             });
             $('#voteButtons').show();
         }
-        // players.push(
-        //     { name: 'Вы', vote: current ? current.vote : '', isAdmin: current ? current.isAdmin : false },
-        //     { name: 'Average', vote: '', isAdmin: false },
-        //     { name: 'Total', vote: '', isAdmin: false },
-        //     { name: 'Revealed', vote: revealed ? 'Yes' : 'No', isAdmin: false },
-        //     { name: 'Room ID', vote: roomId, isAdmin: false },
-        //     { name: 'Players Count', vote: players.length, isAdmin: false }
-        //
-        // )
+
         players.forEach(player => {
             const voted = Boolean(player.vote);
             const item = $(`<div class="item${voted ? ' voted-row' : ''}"></div>`);
-            const emoji = getEmoji(player.name);
-            const avatar = $(`<div class="ui avatar image">${emoji}</div>`);
+            const initials = getInitials(player.name);
+            const avatar = $(`<div class="ui avatar image initials">${initials}</div>`);
             const content = $('<div class="content flex-center"></div>');
             const header = $(`<div class="header">${player.name}${player.isAdmin ? ' (admin)' : ''}</div>`);
             const extra = $('<div class="description"></div>');
 
+            if(player.vote && !isNaN(player.vote)) {
+                numericVotes.push(parseFloat(player.vote));
+            }
+
             if (revealed && player.vote) {
                 extra.append(`<div class="vote">Голос: ${player.vote}</div>`);
-                if (!isNaN(player.vote)) {
-                    numericVotes.push(parseFloat(player.vote));
-                }
             } else if (player.name === name && player.vote) {
                 extra.append(`<div class="vote">Вы выбрали: ${player.vote}</div>`);
-            } else if (player.vote) {
-                // extra.append(`<div class="vote">Голос скрыт</div>`);
             }
 
             content.append(header).append(extra);
@@ -214,31 +251,24 @@
             $('#players').append(item);
         });
 
+        const roundedAvg = calcAvg(numericVotes);
+        $('#averageVote1').val(roundedAvg);
         if (revealed && numericVotes.length > 0) {
-            const avg = numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length;
-            //округлить avg до значений из points
-            const roundedAvg = points.reduce((prev, curr) => Math.abs(curr - avg) < Math.abs(prev - avg) ? curr : prev);
-
-            $('#averageVote')
-                .transition('pulse')
-            ;
+            $('#averageVote').transition('pulse');
             $('averageVote').text(`${roundedAvg}`);
         } else {
             $('averageVote').text('-');
         }
     }
 
-    socket.on('players_update', players => {
-        renderPlayers(players);
-    });
-
-    socket.on('votes_update', players => {
-        renderPlayers(players);
-    });
-
+    socket.on('players_update', renderPlayers);
+    socket.on('votes_update', renderPlayers);
     socket.on('reveal_update', state => {
         revealed = state;
         socket.emit('get_players', roomId);
+    });
+    socket.on('note_update', note => {
+            $('#noteDisplay').text(note).show();
     });
 </script>
 </body>
