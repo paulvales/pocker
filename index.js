@@ -35,6 +35,8 @@ io.on('connection', (socket) => {
         if (notes[roomId]) {
             socket.emit('note_update', notes[roomId]);
         }
+        io.to(roomId).emit('user_event', { message: `${name} подключился` , type: 'success'});
+
     });
 
     socket.on('vote', ({ roomId, value }) => {
@@ -65,8 +67,10 @@ io.on('connection', (socket) => {
         for (const roomId in rooms) {
             const room = rooms[roomId];
             if (room.players[socket.id]) {
+                const username = room.players[socket.id].name;
                 delete room.players[socket.id];
                 io.to(roomId).emit('players_update', Object.values(room.players));
+                io.to(roomId).emit('user_event', { message: `${username} отключился` , type: 'error'});
             }
         }
     });
