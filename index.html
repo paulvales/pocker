@@ -111,7 +111,10 @@
     </style>
 </head>
 <body>
-<h2 class="ui header">Скрум Покер Онлине   <div class="ui left pointing label" id="currentAdmin" ></div></h2>
+<div class="ui basic center aligned segment">
+    <h2 class="ui header">Скрум Покер Онлине</h2>
+    <div class="ui  label" id="currentAdmin" ></div>
+</div>
 <div class="ui basic segment" id="common">
     <div class="ui form">
         <div class="fields">
@@ -146,8 +149,7 @@
     </div>
 
     <div class="ui message" id="noteDisplay"  style="display:none;"></div>
-
-    <div id="voteButtons" class="ui big stackable buttons" style="margin-bottom: 15px;margin-top: 15px; display: none;"></div>
+    <div id="voteButtons"  class="ui wrapping big spaced buttons"  style="margin-bottom: 15px;margin-top: 15px; display: none;"> </div>
     <div class="ui big divided list" id="players"></div>
 
     <div class="right ui rail">
@@ -163,12 +165,17 @@
 </div>
 <input type="hidden" id="averageVote1">
 <script>
-    const socket = io('pocker-production.up.railway.app');
-    // const socket = io('http://localhost:3000');
+    // const socket = io('pocker-production.up.railway.app');
+    const socket = io('http://localhost:3000');
     const roomId = 'default-room';
+    let mySocketId = null;
     let name = '';
     let revealed = false;
     let isAdmin = false;
+
+    socket.on('connect', () => {
+        mySocketId = socket.id;
+    });
 
     const points = ["1", "2", "3", "5", "8", "13", "20", "40", "?"];
 
@@ -252,7 +259,7 @@
         $('#currentAdmin').text(admin ? `Текущий админ: ${admin.name}` : '');
         const numericVotes = [];
 
-        const current = players.find(p => p.name === name);
+        const current = players.find(p => p.id === mySocketId);
         if (current) {
             points.forEach(p => {
                 const btn = $(`<button class="ui big button">${p}</button>`);

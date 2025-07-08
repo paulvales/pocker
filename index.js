@@ -23,21 +23,20 @@ io.on('connection', (socket) => {
             rooms[roomId] = { players: {}, revealed: false };
         }
 
-        // проверяем, если админ уже есть
         const alreadyHasAdmin = Object.values(rooms[roomId].players).some(p => p.isAdmin);
         if (isAdmin && alreadyHasAdmin) {
-            isAdmin = false; // сбрасываем роль
+            isAdmin = false;
         }
 
-        rooms[roomId].players[socket.id] = { name, vote: null, isAdmin };
+        rooms[roomId].players[socket.id] = { id: socket.id, name, vote: null, isAdmin };
         io.to(roomId).emit('players_update', Object.values(rooms[roomId].players));
 
         if (notes[roomId]) {
             socket.emit('note_update', notes[roomId]);
         }
-        io.to(roomId).emit('user_event', { message: `${name} подключился` , type: 'success'});
-
+        io.to(roomId).emit('user_event', { message: `${name} подключился`, type: 'success' });
     });
+
 
     socket.on('vote', ({ roomId, value }) => {
         const player = rooms[roomId]?.players?.[socket.id];
@@ -58,10 +57,16 @@ io.on('connection', (socket) => {
         if (rooms[roomId]) {
             Object.values(rooms[roomId].players).forEach(p => p.vote = null);
             rooms[roomId].revealed = false;
+
+            // ⬇⬇⬇ добавляем эту строку
+            notes[roomId] = '';
+
             io.to(roomId).emit('votes_update', Object.values(rooms[roomId].players));
             io.to(roomId).emit('reveal_update', false);
+            io.to(roomId).emit('note_update', '');
         }
     });
+
 
     socket.on('disconnect', () => {
         for (const roomId in rooms) {
