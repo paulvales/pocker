@@ -165,8 +165,8 @@
 </div>
 <input type="hidden" id="averageVote1">
 <script>
-    // const socket = io('pocker-production.up.railway.app');
-    const socket = io('http://localhost:3000');
+    const socket = io('pocker-production.up.railway.app');
+    // const socket = io('http://localhost:3000');
     const roomId = 'default-room';
     let mySocketId = null;
     let name = '';
@@ -250,6 +250,13 @@
     function calcAvg(numericVotes) {
         return (numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length).toFixed(0);
     }
+    function getGradientIndex(id, count) {
+        let hash = 0;
+        for (let i = 0; i < id.length; i++) {
+            hash = (hash << 5) - hash + id.charCodeAt(i);
+        }
+        return Math.abs(hash) % count;
+    }
 
     function renderPlayers(players) {
         $('#players').empty();
@@ -283,7 +290,7 @@
             const initials = getInitials(player.name);
 
             const gradientClasses = ['gradient-1', 'gradient-2', 'gradient-3', 'gradient-4', 'gradient-5'];
-            const gradientIndex = player.name.charCodeAt(0) % gradientClasses.length;
+            const gradientIndex = getGradientIndex(player.id, gradientClasses.length);
             const avatar = $(`<div class="ui avatar image initials ${gradientClasses[gradientIndex]}">${initials}</div>`);
 
             const point = $(`<div class="ui avatar image initials selectedPoint">?</div>`);
@@ -297,7 +304,7 @@
             if (revealed && player.vote) {
                 point.text(player.vote)
                 // extra.append(`<div class="vote">Голос: ${player.vote}</div>`);
-            } else if (player.name === name && player.vote) {
+            } else if (player.id === mySocketId && player.vote) {
                 point.text(player.vote)
                 // extra.append(`<div class="vote">Вы выбрали: ${player.vote}</div>`);
             }
