@@ -9,11 +9,7 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.2/dist/semantic.min.js"></script>
     <style>
-        body {
-            padding: 20px;
-            max-width: 900px;
-            margin: auto;
-        }
+
 
         .vote {
             font-weight: bold;
@@ -23,8 +19,9 @@
         #averageVote {
             font-weight: bold;
             margin-top: 15px;
+            padding: .4em;
             font-size: 1.2em;
-            border-radius: .5em!important;
+            border-radius: .5em !important;
         }
 
         .voted-row {
@@ -76,94 +73,153 @@
         /*        margin-bottom: 10px;*/
         /*    }*/
         /*}*/
-        .ui.avatar.image.initials.selectedPoint{
+        .ui.avatar.image.initials.selectedPoint {
             background: #fff;
         }
-        .ui.list>.item>.image+.content{
-            padding: 1em!important;
+
+        .ui.list > .item > .image + .content {
+            padding: 1em !important;
         }
-        .ui.avatar.image.initials.gradient-1 {
+        .card.default-card {
+            background: white !important;
+            color: black !important;
+            border: 1px solid #e0e1e2 !important;
+        }
+
+        .card.gradient-1 {
             background: linear-gradient(135deg, #667eea, #764ba2) !important;
             color: white !important;
         }
 
-        .ui.avatar.image.initials.gradient-2 {
+        .card.gradient-2 {
             background: linear-gradient(135deg, #f7971e, #ffd200) !important;
-            color: black !important;
+            color: white !important;
         }
 
-        .ui.avatar.image.initials.gradient-3 {
+        .card.gradient-3 {
             background: linear-gradient(135deg, #00c6ff, #0072ff) !important;
             color: white !important;
         }
 
-        .ui.avatar.image.initials.gradient-4 {
+        .card.gradient-4 {
             background: linear-gradient(135deg, #43e97b, #38f9d7) !important;
-            color: black !important;
-        }
-
-        .ui.avatar.image.initials.gradient-5 {
-            background: linear-gradient(135deg, #f54ea2, #ff7676) !important;
             color: white !important;
         }
 
+        .card.gradient-5 {
+            background: linear-gradient(135deg, #f54ea2, #ff7676) !important;
+            color: white !important;
+        }
+        .card[class*="gradient-"] .header {
+            color: white !important;
+        }
 
+        #playerName.disabled {
+            pointer-events: none;
+            border: none;
+            background: #e0e1e2;
+        }
+
+        #currentAdmin {
+            visibility: hidden;
+        }
+
+        .ui.sticky {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .ui.divided.list > .item {
+            padding: .5em !important;
+        }
+
+        #noteDisplay a {
+            color: #2185d0;
+            text-decoration: underline;
+            word-break: break-word;
+        }
+        .ui.card>.content>.header, .ui.cards>.card>.content>.header{
+            text-align: center;
+        }
+        .selectedPoint{
+            margin: .1em 0;
+            font-size: 3em;
+            text-align: center;
+            font-weight: bold;
+        }
+        #noteDisplay{
+     background: #fff;
+     box-shadow: none;
+     border: 1px solid #e0e1e2;
+ }
     </style>
 </head>
 <body>
-<div class="ui basic center aligned segment">
-    <h2 class="ui header">Скрум Покер Онлине</h2>
-    <div class="ui  label" id="currentAdmin" ></div>
-</div>
-<div class="ui basic segment" id="common">
-    <div class="ui form">
-        <div class="fields">
-            <div class="nine wide field">
+<div class="ui centered grid container">
+    <div class="twelve wide column">
+        <div class="ui basic center aligned segment">
+            <div class="ui basic center aligned segment" style="margin-bottom: 0;">
+                <h2 class="ui  header">Скрум Покер Онлине</h2>
+                <div class="ui label" id="currentAdmin"></div>
+            </div>
+
+            <div class="ui action input">
                 <input type="text" id="playerName" placeholder="Ваше имя">
+                <button class="ui button onlyAuth" id="iAmAdmin">Я админ</button>
+                <button class="ui primary button onlyAuth" id="joinBtn">Коннект</button>
+                <button class="ui orange button" id="changeNameBtn" style="display:none;">Изменить имя</button>
             </div>
-            <div class="two wide field">
-                <div class="ui checkbox isAdmin" style="margin-top: .6em;">
-                    <input type="checkbox" id="isAdmin">
-                    <label>Я админ</label>
+        </div>
+        <input type="hidden" id="isAdmin" value="0">
+        <div class="ui basic segment" id="common">
+
+
+
+            <div id="adminControls" class="ui big buttons" style="display:none; margin: 10px 0;">
+                <button class="ui green button" id="revealBtn">Показать</button>
+                <button class="ui red button" id="resetBtn">Сбросить</button>
+            </div>
+
+            <div class="ui form" id="adminNoteForm" style="display:none;">
+                <div class="field">
+                    <label>Сообщение участникам:</label>
+                    <input type="text" id="adminNote" placeholder="Введите сообщение...">
                 </div>
             </div>
-            <div class="five wide field">
-                <div class="ui right floated buttons">
-                    <button class="ui primary button" id="joinBtn">Коннект</button>
-                    <button class="ui orange button" id="changeNameBtn"  style="display:none;">Изменить имя</button>
-                </div>
-            </div>
+
+            <div class="ui message" id="noteDisplay" style="display:none;"></div>
+            <div id="voteButtons" class="ui wrapping big spaced buttons"
+                 style="margin-bottom: 15px;margin-top: 15px; display: none;"></div>
+
+
         </div>
+        <div class="ui  six doubling basic cards" id="players">
+
+
+
+
+
+
+
+
+        </div>
+<!--        <div class="ui big divided list" id="players"></div>-->
+
+
     </div>
 
-    <div id="adminControls" class="ui big buttons" style="display:none; margin: 10px 0;">
-        <button class="ui green button" id="revealBtn">Показать</button>
-        <button class="ui red button" id="resetBtn">Сбросить</button>
-    </div>
-
-    <div class="ui form" id="adminNoteForm" style="display:none;">
-        <div class="field">
-            <label>Сообщение участникам:</label>
-            <input type="text" id="adminNote" placeholder="Введите сообщение...">
-        </div>
-    </div>
-
-    <div class="ui message" id="noteDisplay"  style="display:none;"></div>
-    <div id="voteButtons"  class="ui wrapping big spaced buttons"  style="margin-bottom: 15px;margin-top: 15px; display: none;"> </div>
-    <div class="ui big divided list" id="players"></div>
-
-    <div class="right ui rail">
-        <div class="ui sticky">
-            <div class="ui circular segment" id="averageVote"  style="display:none;">
-                <h2 class="ui header">
-                    <averageVote>-</averageVote>
-                    <div class="sub header">Средняя оценка</div>
-                </h2>
-            </div>
-        </div>
+    <input type="hidden" id="averageVote1">
+</div>
+</div>
+<div class="ui fixed bottom sticky">
+    <div class="ui center aligned message" id="averageVote" style="display:none;">
+        <h2 class="ui header">
+            <averageVote>-</averageVote>
+            <div class="sub header">Средняя оценка</div>
+        </h2>
     </div>
 </div>
-<input type="hidden" id="averageVote1">
 <script>
     const socket = io('pocker-production.up.railway.app');
     // const socket = io('http://localhost:3000');
@@ -176,6 +232,25 @@
     socket.on('connect', () => {
         mySocketId = socket.id;
     });
+    const fakePlayers = [
+        { id: '1', name: 'Алексей ', vote: 5, isAdmin: true },
+        { id: '2', name: 'Мария ', vote: 7, isAdmin: false },
+        { id: '3', name: 'Игорь ', vote: 5, isAdmin: false },
+        { id: '4', name: 'Ольга ', vote: 8, isAdmin: false },
+        { id: '5', name: 'Дмитрий ', vote: 5, isAdmin: false },
+        { id: '6', name: 'Анна ', vote: 10, isAdmin: false },
+        { id: '7', name: 'Никита ', vote: 25, isAdmin: false },
+        { id: '8', name: 'Екатерина ', vote: 1, isAdmin: false },
+        { id: '9', name: 'Павел ', vote: 3, isAdmin: false },
+        { id: '10', name: 'Светлана ', vote: 2, isAdmin: false },
+        { id: '11', name: 'Андрей ', vote: 5, isAdmin: false }
+    ];
+
+    $('#iAmAdmin').on('click', function () {
+        const next = $('#isAdmin').val() === '0' ? '1' : '0';
+        $('#isAdmin').val(next);
+        $(this).toggleClass('green');
+    });
 
     const points = ["1", "2", "3", "5", "8", "13", "20", "40", "?"];
 
@@ -183,7 +258,11 @@
         return name.trim().split(' ').map(w => w.charAt(0).toUpperCase()).join('').slice(0, 2);
     }
 
-    $('.ui.sticky').sticky({ context: '#common', pushing: true });
+    $('.ui.sticky').sticky({
+        context: 'body',
+        pushing: true,
+        bottomOffset: 0
+    });
 
     function joinSession(newName, newIsAdmin) {
         name = newName;
@@ -192,9 +271,12 @@
         localStorage.setItem('pokerAdmin', isAdmin);
         socket.emit('join', {roomId, name, isAdmin});
         $('#playerName').val(name);
-        $('#isAdmin').prop('checked', isAdmin).prop('disabled', true);
+        $('#playerName').addClass('disabled');
+        $('#isAdmin').prop('disabled', true);
         $('#joinBtn').prop('disabled', true);
+        $('.onlyAuth').hide();
         $('#changeNameBtn, #averageVote').show();
+        $('#currentAdmin').css('visibility', 'visible');
         if (isAdmin) {
             $('#adminControls').show();
             $('#adminNoteForm').show();
@@ -204,7 +286,6 @@
     }
 
     $(document).ready(() => {
-        $('.ui.checkbox').checkbox();
         const savedName = localStorage.getItem('pokerName');
         const savedAdmin = localStorage.getItem('pokerAdmin') === 'true';
         if (savedName) joinSession(savedName, savedAdmin);
@@ -212,7 +293,7 @@
 
     $('#joinBtn').click(() => {
         const newName = $('#playerName').val().trim();
-        const newIsAdmin = $('#isAdmin').is(':checked');
+        const newIsAdmin = $('#isAdmin').val() === '1';
         if (newName) {
             if (newIsAdmin) {
                 socket.emit('request_admin_status', roomId, canJoin => {
@@ -242,14 +323,14 @@
         if (isAdmin) socket.emit('reset', roomId);
     });
 
-    $('#adminNote').on('input keydown change', function() {
+    $('#adminNote').on('input keydown change', function () {
         const note = $(this).val();
-        socket.emit('note_update', { roomId, note });
+        socket.emit('note_update', {roomId, note});
     });
-
     function calcAvg(numericVotes) {
         return (numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length).toFixed(0);
     }
+    const gradientClasses = ['gradient-1', 'gradient-2', 'gradient-3', 'gradient-4', 'gradient-5'];
     function getGradientIndex(id, count) {
         let hash = 0;
         for (let i = 0; i < id.length; i++) {
@@ -276,7 +357,7 @@
             });
             $('#voteButtons').show();
         }
-        if(revealed) {
+        if (revealed) {
             players.sort((a, b) => {
                 if (a.vote === null) return 1;
                 if (b.vote === null) return -1;
@@ -286,18 +367,34 @@
 
         players.forEach(player => {
             const voted = Boolean(player.vote);
-            const item = $(`<div class="item${voted ? ' voted-row' : ''}"></div>`);
+            /**
+             * <div class="card">
+             *     <div class="image">
+             *       <img src="/images/avatar/large/elliot.jpg">
+             *     </div>
+             *   </div>
+             */
+
+            const gradientIndex = getGradientIndex(player.id, gradientClasses.length);
+            let item;
+            if (voted) {
+                const randomIndex = Math.floor(Math.random() * gradientClasses.length);
+                const gradient = gradientClasses[randomIndex];
+                item = $(`<div class="ui raised link card ${gradient}"></div>`);
+            } else {
+                item = $(`<div class="ui raised link card default-card"></div>`);
+            }
+
             const initials = getInitials(player.name);
 
-            const gradientClasses = ['gradient-1', 'gradient-2', 'gradient-3', 'gradient-4', 'gradient-5'];
-            const gradientIndex = getGradientIndex(player.id, gradientClasses.length);
-            const avatar = $(`<div class="ui avatar image initials ${gradientClasses[gradientIndex]}">${initials}</div>`);
 
-            const point = $(`<div class="ui avatar image initials selectedPoint">?</div>`);
+            // const avatar = $(`<div class="ui avatar image initials ">${initials}</div>`);
+
+            const point = $(`<div class="selectedPoint">?</div>`);
             const content = $('<div class="content flex-center"></div>');
-            const header = $(`<div class="header">${player.name}${player.isAdmin ? ' (admin)' : ''}</div>`);
+            const header = $(`<div class="mini header">${player.name}</div>`);
 
-            if(player.vote && !isNaN(player.vote)) {
+            if (player.vote && !isNaN(player.vote)) {
                 numericVotes.push(parseFloat(player.vote));
             }
 
@@ -309,8 +406,8 @@
                 // extra.append(`<div class="vote">Вы выбрали: ${player.vote}</div>`);
             }
 
-            content.append(header);
-            item.append(avatar).append(point).append(content).hide().fadeIn(400);
+            content.append(point).append(header);
+            item.append(content).hide().fadeIn(400);
             $('#players').append(item);
         });
 
@@ -329,7 +426,7 @@
     socket.on('reveal_update', state => {
         revealed = state;
         socket.emit('get_players', roomId);
-        if(!state){
+        if (!state) {
             $.toast({
                 class: 'warning',
                 message: `Оценки сброшены`
@@ -337,16 +434,24 @@
         }
     });
     socket.on('note_update', note => {
-        if (!isAdmin) {
-            $('#noteDisplay').text(note).show();
+        if (!isAdmin && note.length > 1) {
+            $('#noteDisplay').html(parseLinks(note)).show();
         }
     });
-    socket.on('user_event', ({ message, type}) => {
+    socket.on('user_event', ({message, type}) => {
         $.toast({
             class: type,
             message
         });
     });
+
+    function parseLinks(text) {
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        return text.replace(urlRegex, url => {
+            const display = url.length > 50 ? url.slice(0, 47) + '...' : url;
+            return `<a href="${url}" target="_blank" rel="noopener noreferrer">${display}</a>`;
+        });
+    }
 
 </script>
 </body>
