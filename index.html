@@ -120,10 +120,12 @@
             background: #e0e1e2;
         }
 
-        #currentAdmin {
+        #adminWrapper {
             visibility: hidden;
         }
-
+        #currentAdmin{
+            color: #f2711c;
+        }
         .ui.sticky {
             position: fixed;
             bottom: 0;
@@ -161,15 +163,25 @@
         <div class="ui basic center aligned segment">
             <div class="ui basic center aligned segment" style="margin-bottom: 0;">
                 <h2 class="ui  header">Скрум Покер Онлине</h2>
-                <div class="ui label" id="currentAdmin"></div>
+                <div class="ui label" id="adminWrapper"><i class="chess king icon"></i>Текущий админ: <span id="currentAdmin"></span></div>
             </div>
 
-            <div class="ui action input">
-                <input type="text" id="playerName" placeholder="Ваше имя">
-                <button class="ui button onlyAuth" id="iAmAdmin">Я админ</button>
-                <button class="ui primary button onlyAuth" id="joinBtn">Коннект</button>
-                <button class="ui orange button" id="changeNameBtn" style="display:none;">Изменить имя</button>
+            <div class="ui form" style="margin-top: 10px;">
+                <div class="two fields">
+                    <div class="field">
+                        <input type="text" id="roomIdInput" placeholder="ID комнаты" value="default-room">
+                    </div>
+                    <div class="field">
+                        <input type="text" id="playerName" placeholder="Ваше имя">
+                    </div>
+                </div>
+                <div class="ui buttons">
+                    <button class="ui button onlyAuth" id="iAmAdmin">Я админ</button>
+                    <button class="ui primary button onlyAuth" id="joinBtn">Коннект</button>
+                    <button class="ui orange button" id="changeNameBtn" style="display:none;">Изменить имя</button>
+                </div>
             </div>
+            <div class="ui label" id="roomIndicator" style="margin-top: 10px;"></div>
         </div>
         <input type="hidden" id="isAdmin" value="0">
         <div class="ui basic segment" id="common">
@@ -223,12 +235,17 @@
 <script>
     const socket = io('pocker-production.up.railway.app');
     // const socket = io('http://localhost:3000');
-    const roomId = 'default-room';
+    let roomId = 'default-room';
+    const savedRoom = localStorage.getItem('pokerRoomId') || 'default-room';
+    roomId = savedRoom;
+    $('#roomIdInput').val(roomId);
+
     let mySocketId = null;
     let name = '';
     let revealed = false;
     let isAdmin = false;
-
+    localStorage.setItem('pokerRoomId', roomId);
+    $('#roomIndicator').text(`Комната: ${roomId}`);
     socket.on('connect', () => {
         mySocketId = socket.id;
     });
@@ -269,6 +286,8 @@
         isAdmin = newIsAdmin;
         localStorage.setItem('pokerName', name);
         localStorage.setItem('pokerAdmin', isAdmin);
+        localStorage.setItem('pokerRoomId', roomId);
+        $('#roomIndicator').text(`Комната: ${roomId}`);
         socket.emit('join', {roomId, name, isAdmin});
         $('#playerName').val(name);
         $('#playerName').addClass('disabled');
@@ -276,7 +295,7 @@
         $('#joinBtn').prop('disabled', true);
         $('.onlyAuth').hide();
         $('#changeNameBtn, #averageVote').show();
-        $('#currentAdmin').css('visibility', 'visible');
+        $('#adminWrapper').css('visibility', 'visible');
         if (isAdmin) {
             $('#adminControls').show();
             $('#adminNoteForm').show();
@@ -294,6 +313,7 @@
     $('#joinBtn').click(() => {
         const newName = $('#playerName').val().trim();
         const newIsAdmin = $('#isAdmin').val() === '1';
+        roomId = $('#roomIdInput').val().trim() || 'default-room';
         if (newName) {
             if (newIsAdmin) {
                 socket.emit('request_admin_status', roomId, canJoin => {
@@ -344,7 +364,7 @@
         $('#voteButtons').empty().hide();
         $('.isAdmin').hide();
         const admin = players.find(p => p.isAdmin);
-        $('#currentAdmin').text(admin ? `Текущий админ: ${admin.name}` : '');
+        $('#currentAdmin').text(admin ? `${admin.name}` : '---');
         const numericVotes = [];
 
         const current = players.find(p => p.id === mySocketId);
