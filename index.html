@@ -120,10 +120,12 @@
             background: #e0e1e2;
         }
 
-        #currentAdmin {
+        #adminWrapper {
             visibility: hidden;
         }
-
+        #currentAdmin {
+            color: #f2711c;
+        }
         .ui.sticky {
             position: fixed;
             bottom: 0;
@@ -161,7 +163,7 @@
         <div class="ui basic center aligned segment">
             <div class="ui basic center aligned segment" style="margin-bottom: 0;">
                 <h2 class="ui  header">Скрум Покер Онлине</h2>
-                <div class="ui label" id="currentAdmin"></div>
+                <div class="ui label" id="adminWrapper"><i class="chess king icon"></i>Текущий админ: <span id="currentAdmin"></span></div>
             </div>
 
             <div class="ui action input">
@@ -276,7 +278,7 @@
         $('#joinBtn').prop('disabled', true);
         $('.onlyAuth').hide();
         $('#changeNameBtn, #averageVote').show();
-        $('#currentAdmin').css('visibility', 'visible');
+        $('#adminWrapper').css('visibility', 'visible');
         if (isAdmin) {
             $('#adminControls').show();
             $('#adminNoteForm').show();
@@ -298,7 +300,11 @@
             if (newIsAdmin) {
                 socket.emit('request_admin_status', roomId, canJoin => {
                     if (!canJoin) {
-                        alert('Админ уже существует. Вы не можете стать вторым.');
+                        $.toast({
+                            position: 'top center',
+                            class: 'error',
+                            message: `Админ уже существует. Вы не можете стать вторым.`
+                        });
                         return;
                     }
                     joinSession(newName, newIsAdmin);
@@ -344,7 +350,7 @@
         $('#voteButtons').empty().hide();
         $('.isAdmin').hide();
         const admin = players.find(p => p.isAdmin);
-        $('#currentAdmin').text(admin ? `Текущий админ: ${admin.name}` : '');
+        $('#currentAdmin').text(admin ? `${admin.name}` : '');
         const numericVotes = [];
 
         const current = players.find(p => p.id === mySocketId);
