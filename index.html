@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scrum Poker</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.2/dist/semantic.min.css">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.2/dist/semantic.min.js"></script>
+
     <style>
 
 
@@ -80,6 +78,7 @@
         .ui.list > .item > .image + .content {
             padding: 1em !important;
         }
+
         .card.default-card {
             background: white !important;
             color: black !important;
@@ -110,6 +109,7 @@
             background: linear-gradient(135deg, #f54ea2, #ff7676) !important;
             color: white !important;
         }
+
         .card[class*="gradient-"] .header {
             color: white !important;
         }
@@ -123,9 +123,11 @@
         #adminWrapper {
             visibility: hidden;
         }
+
         #currentAdmin {
             color: #f2711c;
         }
+
         .ui.sticky {
             position: fixed;
             bottom: 0;
@@ -141,20 +143,27 @@
             text-decoration: underline;
             word-break: break-word;
         }
-        .ui.card>.content>.header, .ui.cards>.card>.content>.header{
+
+        .ui.card > .content > .header, .ui.cards > .card > .content > .header {
             text-align: center;
         }
-        .selectedPoint{
+
+        .selectedPoint {
             margin: .1em 0;
             font-size: 3em;
             text-align: center;
             font-weight: bold;
         }
-        #noteDisplay{
-     background: #fff;
-     box-shadow: none;
-     border: 1px solid #e0e1e2;
- }
+
+        #noteDisplay {
+            background: #fff;
+            box-shadow: none;
+            border: 1px solid #e0e1e2;
+        }
+
+        .ui.card, .ui.cards > .card {
+            border-radius: .5em;
+        }
     </style>
 </head>
 <body>
@@ -163,7 +172,8 @@
         <div class="ui basic center aligned segment">
             <div class="ui basic center aligned segment" style="margin-bottom: 0;">
                 <h2 class="ui  header">Скрум Покер Онлине</h2>
-                <div class="ui label" id="adminWrapper"><i class="chess king icon"></i>Текущий админ: <span id="currentAdmin"></span></div>
+                <div class="ui label" id="adminWrapper"><i class="chess king icon"></i>Текущий админ: <span
+                        id="currentAdmin"></span></div>
             </div>
 
             <div class="ui action input">
@@ -175,7 +185,6 @@
         </div>
         <input type="hidden" id="isAdmin" value="0">
         <div class="ui basic segment" id="common">
-
 
 
             <div id="adminControls" class="ui big buttons" style="display:none; margin: 10px 0;">
@@ -199,14 +208,8 @@
         <div class="ui  six doubling basic cards" id="players">
 
 
-
-
-
-
-
-
         </div>
-<!--        <div class="ui big divided list" id="players"></div>-->
+        <!--        <div class="ui big divided list" id="players"></div>-->
 
 
     </div>
@@ -222,6 +225,9 @@
         </h2>
     </div>
 </div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.2/dist/semantic.min.js"></script>
 <script>
     const socket = io('pocker-production.up.railway.app');
     // const socket = io('http://localhost:3000');
@@ -235,17 +241,17 @@
         mySocketId = socket.id;
     });
     const fakePlayers = [
-        { id: '1', name: 'Алексей ', vote: 5, isAdmin: true },
-        { id: '2', name: 'Мария ', vote: 7, isAdmin: false },
-        { id: '3', name: 'Игорь ', vote: 5, isAdmin: false },
-        { id: '4', name: 'Ольга ', vote: 8, isAdmin: false },
-        { id: '5', name: 'Дмитрий ', vote: 5, isAdmin: false },
-        { id: '6', name: 'Анна ', vote: 10, isAdmin: false },
-        { id: '7', name: 'Никита ', vote: 25, isAdmin: false },
-        { id: '8', name: 'Екатерина ', vote: 1, isAdmin: false },
-        { id: '9', name: 'Павел ', vote: 3, isAdmin: false },
-        { id: '10', name: 'Светлана ', vote: 2, isAdmin: false },
-        { id: '11', name: 'Андрей ', vote: 5, isAdmin: false }
+        {id: '1', name: 'Алексей ', vote: 5, isAdmin: true},
+        {id: '2', name: 'Мария ', vote: 7, isAdmin: false},
+        {id: '3', name: 'Игорь ', vote: 5, isAdmin: false},
+        {id: '4', name: 'Ольга ', vote: 8, isAdmin: false},
+        {id: '5', name: 'Дмитрий ', vote: 5, isAdmin: false},
+        {id: '6', name: 'Анна ', vote: 10, isAdmin: false},
+        {id: '7', name: 'Никита ', vote: 25, isAdmin: false},
+        {id: '8', name: 'Екатерина ', vote: 1, isAdmin: false},
+        {id: '9', name: 'Павел ', vote: 3, isAdmin: false},
+        {id: '10', name: 'Светлана ', vote: 2, isAdmin: false},
+        {id: '11', name: 'Андрей ', vote: 5, isAdmin: false}
     ];
 
     $('#iAmAdmin').on('click', function () {
@@ -333,10 +339,13 @@
         const note = $(this).val();
         socket.emit('note_update', {roomId, note});
     });
+
     function calcAvg(numericVotes) {
         return (numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length).toFixed(0);
     }
+
     const gradientClasses = ['gradient-1', 'gradient-2', 'gradient-3', 'gradient-4', 'gradient-5'];
+
     function getGradientIndex(id, count) {
         let hash = 0;
         for (let i = 0; i < id.length; i++) {
@@ -346,15 +355,13 @@
     }
 
     function renderPlayers(players) {
-        $('#players').empty();
-        $('#voteButtons').empty().hide();
-        $('.isAdmin').hide();
-        const admin = players.find(p => p.isAdmin);
-        $('#currentAdmin').text(admin ? `${admin.name}` : '');
+        const $players = $('#players');
+        const current = players.find(p => p.id === mySocketId);
+        const existingIds = new Set();
         const numericVotes = [];
 
-        const current = players.find(p => p.id === mySocketId);
         if (current) {
+            $('#voteButtons').empty().hide();
             points.forEach(p => {
                 const btn = $(`<button class="ui big button">${p}</button>`);
                 btn.click(() => socket.emit('vote', {roomId, value: p}));
@@ -363,6 +370,10 @@
             });
             $('#voteButtons').show();
         }
+
+        const admin = players.find(p => p.isAdmin);
+        $('#currentAdmin').text(admin ? `${admin.name}` : '---');
+
         if (revealed) {
             players.sort((a, b) => {
                 if (a.vote === null) return 1;
@@ -373,48 +384,45 @@
 
         players.forEach(player => {
             const voted = Boolean(player.vote);
-            /**
-             * <div class="card">
-             *     <div class="image">
-             *       <img src="/images/avatar/large/elliot.jpg">
-             *     </div>
-             *   </div>
-             */
-
             const gradientIndex = getGradientIndex(player.id, gradientClasses.length);
-            let item;
-            if (voted) {
-                const randomIndex = Math.floor(Math.random() * gradientClasses.length);
-                const gradient = gradientClasses[randomIndex];
-                item = $(`<div class="ui raised link card ${gradient}"></div>`);
+            const gradient = voted ? gradientClasses[Math.floor(Math.random() * gradientClasses.length)] : null;
+            const existing = $players.find(`[data-id="${player.id}"]`);
+
+            const showVote = revealed || player.id === mySocketId;
+            const point = showVote && voted ? player.vote : '?';
+
+            let card;
+            if (existing.length) {
+                card = existing;
+                card.find('.selectedPoint').text(point);
+                card.find('.header').text(player.name);
+                card
+                    .removeClass()
+                    .addClass(`ui raised link card ${voted ? gradient : 'default-card'}`)
+                    .attr('data-id', player.id);
+                $players.append(card); // reorder
             } else {
-                item = $(`<div class="ui raised link card default-card"></div>`);
+                const item = $(`<div class="ui raised link card ${voted ? gradient : 'default-card'}" data-id="${player.id}"></div>`);
+                const content = $('<div class="content flex-center"></div>');
+                const pointEl = $(`<div class="selectedPoint">${point}</div>`);
+                const header = $(`<div class="mini header">${player.name}</div>`);
+                content.append(pointEl).append(header);
+                item.append(content);
+                $players.append(item);
             }
-
-            const initials = getInitials(player.name);
-
-
-            // const avatar = $(`<div class="ui avatar image initials ">${initials}</div>`);
-
-            const point = $(`<div class="selectedPoint">?</div>`);
-            const content = $('<div class="content flex-center"></div>');
-            const header = $(`<div class="mini header">${player.name}</div>`);
 
             if (player.vote && !isNaN(player.vote)) {
                 numericVotes.push(parseFloat(player.vote));
             }
 
-            if (revealed && player.vote) {
-                point.text(player.vote)
-                // extra.append(`<div class="vote">Голос: ${player.vote}</div>`);
-            } else if (player.id === mySocketId && player.vote) {
-                point.text(player.vote)
-                // extra.append(`<div class="vote">Вы выбрали: ${player.vote}</div>`);
-            }
+            existingIds.add(player.id);
+        });
 
-            content.append(point).append(header);
-            item.append(content).hide().fadeIn(400);
-            $('#players').append(item);
+        $players.children().each(function () {
+            const id = $(this).data('id');
+            if (!existingIds.has(id)) {
+                $(this).remove();
+            }
         });
 
         const roundedAvg = calcAvg(numericVotes);
