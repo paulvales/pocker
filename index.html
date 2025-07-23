@@ -278,6 +278,7 @@
     });
 
     function joinSession(newName, newIsAdmin) {
+        $('#joinBtn').removeClass('disabled loading');
         name = newName;
         isAdmin = newIsAdmin;
         localStorage.setItem('pokerName', name);
@@ -305,6 +306,7 @@
     });
 
     $('#joinBtn').click(() => {
+        $('#joinBtn').addClass('disabled loading');
         const newName = $('#playerName').val().trim();
         const newIsAdmin = $('#isAdmin').val() === '1';
         if (newName) {
