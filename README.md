@@ -24,7 +24,7 @@ npm start
 
 The server listens on `process.env.PORT` or `3000` by default.
 
-Run tests (currently just a placeholder):
+Run the unit tests:
 
 ```sh
 npm test
