@@ -311,6 +311,7 @@
             if (newIsAdmin) {
                 socket.emit('request_admin_status', roomId, canJoin => {
                     if (!canJoin) {
+                        $('#joinBtn').removeClass('disabled loading');
                         $.toast({
                             position: 'top center',
                             class: 'error',
