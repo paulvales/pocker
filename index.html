@@ -232,27 +232,15 @@
 <script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.2/dist/semantic.min.js"></script>
 <script>
     // const socket = io('pocker-production.up.railway.app');
-    const ws = new WebSocket('');
+    const socket = io("https://pocker.webpaul.ru");
 
-    const listeners = {};
-    function on(type, fn){ (listeners[type] ||= []).push(fn); }
-    function emit(type, payload){ ws.readyState === 1 ? ws.send(JSON.stringify({type, payload})) : ws.addEventListener('open', () => ws.send(JSON.stringify({type, payload}))); }
-
-    ws.onmessage = e => {
-        const { type, payload } = JSON.parse(e.data);
-        (listeners[type] || []).forEach(fn => fn(payload));
-    };
-    ws.onopen = () => console.log('WS connected');
-    ws.onmessage = (e) => console.log('msg:', e.data);
-    ws.onerror = (e) => console.log('error:', e);
-    ws.onclose = () => console.log('closed');
     const roomId = 'default-room';
     let mySocketId = null;
     let name = '';
     let revealed = false;
     let isAdmin = false;
 
-    on('connect', () => {
+    socket.on('connect', () => {
         mySocketId = socket.id;
     });
     const fakePlayers = [
@@ -293,7 +281,7 @@
         isAdmin = newIsAdmin;
         localStorage.setItem('pokerName', name);
         localStorage.setItem('pokerAdmin', isAdmin);
-        emit('join', {roomId, name, isAdmin});
+        socket.emit('join', {roomId, name, isAdmin});
         $('#playerName').val(name);
         $('#playerName').addClass('disabled');
         $('#isAdmin').prop('disabled', true);
@@ -321,9 +309,8 @@
         const newIsAdmin = $('#isAdmin').val() === '1';
         if (newName) {
             if (newIsAdmin) {
-                emit('request_admin_status', roomId, canJoin => {
+                socket.emit('request_admin_status', roomId, canJoin => {
                     if (!canJoin) {
-                        $('#joinBtn').removeClass('disabled loading');
                         $.toast({
                             position: 'top center',
                             class: 'error',
@@ -346,16 +333,16 @@
     });
 
     $('#revealBtn').click(() => {
-        if (isAdmin) emit('reveal', roomId);
+        if (isAdmin) socket.emit('reveal', roomId);
     });
 
     $('#resetBtn').click(() => {
-        if (isAdmin) emit('reset', roomId);
+        if (isAdmin) socket.emit('reset', roomId);
     });
 
     $('#adminNote').on('input keydown change', function () {
         const note = $(this).val();
-        emit('note_update', {roomId, note});
+        socket.emit('note_update', {roomId, note});
     });
 
     function calcAvg(numericVotes) {
@@ -382,7 +369,7 @@
             $('#voteButtons').empty().hide();
             points.forEach(p => {
                 const btn = $(`<button class="ui big button">${p}</button>`);
-                btn.click(() => emit('vote', {roomId, value: p}));
+                btn.click(() => socket.emit('vote', {roomId, value: p}));
                 if (current.vote === p) btn.addClass('blue');
                 $('#voteButtons').append(btn);
             });
@@ -453,11 +440,11 @@
         }
     }
 
-    on('players_update', renderPlayers);
-    on('votes_update', renderPlayers);
-    on('reveal_update', state => {
+    socket.on('players_update', renderPlayers);
+    socket.on('votes_update', renderPlayers);
+    socket.on('reveal_update', state => {
         revealed = state;
-        emit('get_players', roomId);
+        socket.emit('get_players', roomId);
         if (!state) {
             $.toast({
                 class: 'warning',
@@ -465,12 +452,12 @@
             });
         }
     });
-    on('note_update', note => {
+    socket.on('note_update', note => {
         if (!isAdmin && note.length > 1) {
             $('#noteDisplay').html(parseLinks(note)).show();
         }
     });
-    on('user_event', ({message, type}) => {
+    socket.on('user_event', ({message, type}) => {
         $.toast({
             class: type,
             message
