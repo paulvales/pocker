@@ -269,6 +269,12 @@
         return name.trim().split(' ').map(w => w.charAt(0).toUpperCase()).join('').slice(0, 2);
     }
 
+    // Key for storing current user's vote in this room
+    function getVoteKey() {
+        const nm = name || localStorage.getItem('pokerName') || '';
+        return `pokerVote:${roomId}:${nm}`;
+    }
+
     $('.ui.sticky').sticky({
         context: 'body',
         pushing: true,
@@ -282,6 +288,11 @@
         localStorage.setItem('pokerName', name);
         localStorage.setItem('pokerAdmin', isAdmin);
         socket.emit('join', {roomId, name, isAdmin});
+        // Re-apply saved vote after join (for page reloads)
+        const savedVote = localStorage.getItem(getVoteKey());
+        if (savedVote) {
+            socket.emit('vote', { roomId, value: savedVote });
+        }
         $('#playerName').val(name);
         $('#playerName').addClass('disabled');
         $('#isAdmin').prop('disabled', true);
@@ -328,6 +339,8 @@
     });
 
     $('#changeNameBtn').click(() => {
+        // Clean up stored vote for previous name
+        try { localStorage.removeItem(getVoteKey()); } catch (e) {}
         localStorage.removeItem('pokerName');
         localStorage.removeItem('pokerAdmin');
         location.reload();
@@ -370,7 +383,11 @@
             $('#voteButtons').empty().hide();
             points.forEach(p => {
                 const btn = $(`<button class="ui big button">${p}</button>`);
-                btn.click(() => socket.emit('vote', {roomId, value: p}));
+                btn.click(() => {
+                    socket.emit('vote', {roomId, value: p});
+                    // Persist selection locally so it survives reloads
+                    try { localStorage.setItem(getVoteKey(), p); } catch (e) {}
+                });
                 if (current.vote === p) btn.addClass('blue');
                 $('#voteButtons').append(btn);
             });
@@ -447,6 +464,8 @@
         revealed = state;
         socket.emit('get_players', roomId);
         if (!state) {
+            // Round reset: clear stored vote
+            try { localStorage.removeItem(getVoteKey()); } catch (e) {}
             $.toast({
                 class: 'warning',
                 message: `Оценки сброшены`
