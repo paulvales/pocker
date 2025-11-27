@@ -232,7 +232,7 @@
 <script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.2/dist/semantic.min.js"></script>
 <script>
     // const socket = io('pocker-production.up.railway.app');
-    const socket = io("https://pocker.webpaul.ru");
+    const socket = io("pocker-production-5735.up.railway.app");
 
     const roomId = 'default-room';
     let mySocketId = null;
@@ -391,7 +391,7 @@
         players.forEach(player => {
             const voted = Boolean(player.vote);
             const gradientIndex = getGradientIndex(player.id, gradientClasses.length);
-            const gradient = voted ? gradientClasses[Math.floor(Math.random() * gradientClasses.length)] : null;
+            const gradient = voted ? gradientClasses[gradientIndex] : null;
             const existing = $players.find(`[data-id="${player.id}"]`);
 
             const showVote = revealed || player.id === mySocketId;
