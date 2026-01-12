@@ -164,6 +164,24 @@
         .ui.card, .ui.cards > .card {
             border-radius: .5em;
         }
+        #players {
+            display: grid !important;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1em;
+        }
+        #players > .card {
+            width: 100% !important;
+            margin: 0 !important;
+        }
+        #voteButtons{
+            display: grid !important;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 10px;
+            width: 100%;
+        }
+        #voteButtons .ui.button {
+            margin: 0 !important;
+        }
     </style>
 </head>
 <body>
@@ -206,7 +224,7 @@
 
         </div>
         <div class="ui basic segment" style="margin-top: 0">
-            <div class="ui  six doubling basic cards" id="players">
+            <div id="players">
 
 
             </div>
@@ -232,6 +250,7 @@
 <script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.2/dist/semantic.min.js"></script>
 <script>
     // const socket = io('pocker-production.up.railway.app');
+    // const socket = io("pocker.webpaul.ru");
     const socket = io("");
 
     const roomId = 'default-room';
@@ -239,13 +258,13 @@
     let name = '';
     let revealed = false;
     let isAdmin = false;
-
+    const VOTE_TTL_MS = 60 * 60 * 1000; // 1 час
     socket.on('connect', () => {
         mySocketId = socket.id;
     });
     const fakePlayers = [
-        {id: '1', name: 'Алексей ', vote: 5, isAdmin: true},
-        {id: '2', name: 'Мария ', vote: 7, isAdmin: false},
+        {id: '1', name: 'Алексей', vote: 5, isAdmin: true},
+        {id: '2', name: 'Мария', vote: 7, isAdmin: false},
         {id: '3', name: 'Игорь ', vote: 5, isAdmin: false},
         {id: '4', name: 'Ольга ', vote: 8, isAdmin: false},
         {id: '5', name: 'Дмитрий ', vote: 5, isAdmin: false},
@@ -263,7 +282,7 @@
         $(this).toggleClass('green');
     });
 
-    const points = ["1", "2", "3", "5", "8", "13", "20", "40", "?"];
+    const points = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "20", "24", "32", "40", "?"];
 
     function getInitials(name) {
         return name.trim().split(' ').map(w => w.charAt(0).toUpperCase()).join('').slice(0, 2);
@@ -273,6 +292,31 @@
     function getVoteKey() {
         const nm = name || localStorage.getItem('pokerName') || '';
         return `pokerVote:${roomId}:${nm}`;
+    }
+
+    function setVoteWithTTL(key, value) {
+        const payload = {
+            value,
+            expires: Date.now() + VOTE_TTL_MS
+        };
+        localStorage.setItem(key, JSON.stringify(payload));
+    }
+
+    function getVoteWithTTL(key) {
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+
+        try {
+            const payload = JSON.parse(raw);
+            if (!payload.expires || Date.now() > payload.expires) {
+                localStorage.removeItem(key);
+                return null;
+            }
+            return payload.value;
+        } catch (e) {
+            localStorage.removeItem(key);
+            return null;
+        }
     }
 
     $('.ui.sticky').sticky({
@@ -289,7 +333,7 @@
         localStorage.setItem('pokerAdmin', isAdmin);
         socket.emit('join', {roomId, name, isAdmin});
         // Re-apply saved vote after join (for page reloads)
-        const savedVote = localStorage.getItem(getVoteKey());
+        const savedVote = getVoteWithTTL(getVoteKey());
         if (savedVote) {
             socket.emit('vote', { roomId, value: savedVote });
         }
@@ -381,12 +425,14 @@
 
         if (current) {
             $('#voteButtons').empty().hide();
+            const originalPoints = ["1", "2", "3", "5", "8", "13", "20", "40", "?"];
             points.forEach(p => {
-                const btn = $(`<button class="ui big button">${p}</button>`);
+                const isOriginal = originalPoints.includes(p);
+                const btn = $(`<button class="ui big button ${isOriginal ? 'orange' : ''}">${p}</button>`);
                 btn.click(() => {
                     socket.emit('vote', {roomId, value: p});
                     // Persist selection locally so it survives reloads
-                    try { localStorage.setItem(getVoteKey(), p); } catch (e) {}
+                    try { setVoteWithTTL(getVoteKey(), p); } catch (e) {}
                 });
                 if (current.vote === p) btn.addClass('blue');
                 $('#voteButtons').append(btn);
@@ -458,6 +504,7 @@
         }
     }
 
+    
     socket.on('players_update', renderPlayers);
     socket.on('votes_update', renderPlayers);
     socket.on('reveal_update', state => {
