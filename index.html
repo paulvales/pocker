@@ -182,9 +182,19 @@
         #voteButtons .ui.button {
             margin: 0 !important;
         }
+        .httpsNotice{
+            padding: 1em;
+            position: absolute;
+        }
+        .httpsNotice a{
+            border-bottom: 1px dotted;
+        }
     </style>
 </head>
 <body>
+<div class="httpsNotice">
+    <a href="https://www.notion.so/303d22895e1580e88e47cb42885696b2" target="_blank">если проблемы с сертификатом</a>
+</div>
 <div class="ui centered grid container">
     <div class="twelve wide column">
         <div class="ui basic center aligned segment">
@@ -250,8 +260,8 @@
 <script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.2/dist/semantic.min.js"></script>
 <script>
     // const socket = io('pocker-production.up.railway.app');
-    // const socket = io("pocker.webpaul.ru");
-    const socket = io("");
+    const socket = io("pocker.webpaul.ru");
+    // const socket = io("");
 
     const roomId = 'default-room';
     let mySocketId = null;
