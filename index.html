@@ -15,8 +15,12 @@
         }
 
         #averageVote {
+            position: fixed;
+            left: 50vw;
+            bottom: 1rem;
+            transform: translateX(-50%);
             font-weight: bold;
-            margin-top: 15px;
+            margin: 0 !important;
             padding: .4em;
             font-size: 1.2em;
             border-radius: .5em !important;
@@ -132,6 +136,12 @@
             position: fixed;
             bottom: 0;
             width: 100%;
+        }
+
+        .ui.fixed.bottom.sticky {
+            left: 0;
+            display: flex !important;
+            justify-content: center;
         }
 
         .ui.divided.list > .item {
@@ -581,6 +591,58 @@
             display: none !important;
         }
 
+        .viewer-task-panel {
+            display: none;
+            align-items: center;
+            min-width: 0;
+            flex: 1 1 18rem;
+        }
+
+        .viewer-task-panel.visible {
+            display: flex !important;
+        }
+
+        .viewer-task-panel .estimation-mode-content {
+            min-width: 0;
+            width: 100%;
+        }
+
+        .viewer-task-link {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            min-width: 0;
+            max-width: 100%;
+            margin: 0 !important;
+            padding: .45em .8em;
+            border-radius: .28571429rem;
+            border: 1px solid #c5dff6;
+            background: #f8fbff;
+            color: #2185d0;
+            font-size: .86rem;
+            font-weight: 700;
+            line-height: 1.2;
+            text-decoration: none;
+        }
+
+        .viewer-task-link:hover {
+            color: #1678c2;
+            background: #eef7ff;
+        }
+
+        .viewer-task-caption {
+            flex-shrink: 0;
+        }
+
+        .viewer-task-value {
+            display: inline-block;
+            min-width: 0;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         #taskListActions {
             display: none;
             padding: 0 !important;
@@ -661,7 +723,7 @@
             position: fixed;
             bottom: .75rem;
             right: .9rem;
-            z-index: 20;
+            z-index: 999;
             font-size: .85rem;
             background: rgba(255, 255, 255, 0.92);
             padding: .35rem .55rem;
@@ -749,13 +811,22 @@
 
             <div class="estimation-mode-panel" id="estimationModePanel" style="display:none;">
                 <div class="estimation-mode-content">
-                    <div class="estimation-mode-label">
+                    <div class="estimation-mode-label" id="estimationModeLabel">
                         Оцениваем: <span class="estimation-mode-value" id="estimationModeValue">Поинты</span>
                     </div>
                     <div class="ui  buttons estimation-mode-buttons" id="estimationModeButtons">
                         <button class="ui button" id="modePointsBtn">Поинты</button>
                         <button class="ui button" id="modeHoursBtn">Часы</button>
                     </div>
+                </div>
+            </div>
+
+            <div class="viewer-task-panel" id="viewerTaskPanel" style="display:none;">
+                <div class="estimation-mode-content">
+                    <a class="viewer-task-link" id="viewerTaskLink" target="_blank" rel="noopener noreferrer">
+                        <span class="viewer-task-caption">Текущая задача:</span>
+                        <span class="viewer-task-value" id="viewerTaskValue">-</span>
+                    </a>
                 </div>
             </div>
 
@@ -789,9 +860,9 @@
 </div>
 </div>
 <div class="ui fixed bottom sticky">
-    <div class=" ui raised  card gradient-2 tiny statistic" id="averageVote" style="display:none;">
+    <div class=" ui   card  tiny statistic" id="averageVote" style="display:none;">
         <div class="value">
-          13
+          0
         </div>
         <div class="label">
             Средняя оценка
@@ -961,21 +1032,46 @@
             .toggle(isJoined)
             .toggleClass('admin-mode', isAdmin)
             .toggleClass('viewer-mode', !isAdmin);
-        $('.estimation-mode-label').html(`<span class="estimation-mode-value" id="estimationModeValue">${modeLabel}</span>`);
+        $('#estimationModeLabel').html(`Оцениваем: <span class="estimation-mode-value" id="estimationModeValue">${modeLabel}</span>`);
         $('#estimationModeButtons').css('display', isAdmin ? 'inline-flex' : 'none');
         $('#modePointsBtn').toggleClass('blue active', estimationMode === 'points');
         $('#modeHoursBtn').toggleClass('blue active', estimationMode === 'hours');
-        $('#averageVote .sub.header').text(estimationMode === 'hours' ? 'Средняя оценка в часах' : 'Средняя оценка в поинтах');
+        $('#averageVote .label').text(estimationMode === 'hours' ? 'Средняя оценка в часах' : 'Средняя оценка в поинтах');
+    }
+
+    function setAverageVoteDisplay(value = '0') {
+        const safeValue = String(value ?? '0');
+        $('#averageVote1').val(safeValue);
+        $('#averageVote .value').text(safeValue);
+    }
+
+    function renderViewerTaskPanel() {
+        const shouldShow = Boolean(name) && !isAdmin && taskState.items.length > 0;
+        const $panel = $('#viewerTaskPanel');
+        const $link = $('#viewerTaskLink');
+
+        if (!shouldShow) {
+            $panel.removeClass('visible');
+            $link.removeAttr('href').removeAttr('title');
+            $('#viewerTaskValue').text('-');
+            return;
+        }
+
+        const selectedTask = taskState.items[taskState.selectedIndex];
+        $link.attr('href', selectedTask).attr('title', selectedTask);
+        $('#viewerTaskValue').text(getTaskLabel(selectedTask));
+        $panel.addClass('visible');
     }
 
     function renderTaskControls() {
         const hasTasks = taskState.items.length > 0;
-        $('#taskSidebar').toggle(Boolean(name) && (isAdmin || hasTasks));
+        $('#taskSidebar').toggle(Boolean(name) && isAdmin);
         $('#taskListActions').toggle(isAdmin);
         $('#loadTaskListBtn').text('Загрузить список');
         $('#taskPickerSection')
             .toggleClass('viewer-mode', !isAdmin)
             .toggleClass('admin-mode', isAdmin);
+        renderViewerTaskPanel();
         $('.task-wheel-title').text(isAdmin ? 'Список задач' : 'Текущая задача');
 
         const canNavigate = isAdmin && taskState.items.length > 0;
@@ -991,56 +1087,39 @@
         const $track = $('#taskWheelTrack');
 
         renderTaskControls();
-        $('#taskPickerSection').toggle(hasTasks);
+        $('#taskPickerSection').toggle(isAdmin && hasTasks);
         $track.empty();
 
-        if (!hasTasks) {
+        if (!hasTasks || !isAdmin) {
+            $track.css('transform', 'translateY(0)');
             return;
         }
 
-        if (isAdmin) {
-            $('<div class="task-wheel-spacer"></div>').appendTo($track);
-            taskState.items.forEach((task, index) => {
-                const distance = Math.abs(index - taskState.selectedIndex);
-                const distanceClass = distance === 0
-                    ? 'distance-0'
-                    : distance === 1
-                        ? 'distance-1'
-                        : distance === 2
-                            ? 'distance-2'
-                            : 'distance-far';
-                const $item = $('<a></a>')
-                    .addClass(`task-wheel-item ${distanceClass}${index === taskState.selectedIndex ? ' active' : ''}`)
-                    .attr('href', task)
-                    .attr('target', '_blank')
-                    .attr('rel', 'noopener noreferrer')
-                    .attr('title', task);
+        $('<div class="task-wheel-spacer"></div>').appendTo($track);
+        taskState.items.forEach((task, index) => {
+            const distance = Math.abs(index - taskState.selectedIndex);
+            const distanceClass = distance === 0
+                ? 'distance-0'
+                : distance === 1
+                    ? 'distance-1'
+                    : distance === 2
+                        ? 'distance-2'
+                        : 'distance-far';
+            const $item = $('<a></a>')
+                .addClass(`task-wheel-item ${distanceClass}${index === taskState.selectedIndex ? ' active' : ''}`)
+                .attr('href', task)
+                .attr('target', '_blank')
+                .attr('rel', 'noopener noreferrer')
+                .attr('title', task);
 
-                $('<span></span>')
-                    .addClass('task-wheel-label')
-                    .text(getTaskLabel(task))
-                    .appendTo($item);
-                $track.append($item);
-            });
-            $('<div class="task-wheel-spacer"></div>').appendTo($track);
-            $track.css('transform', `translateY(${-taskState.selectedIndex * TASK_WHEEL_ITEM_HEIGHT}px)`);
-            return;
-        }
-
-        const selectedTask = taskState.items[taskState.selectedIndex];
-        const $item = $('<a></a>')
-            .addClass('task-wheel-item active')
-            .attr('href', selectedTask)
-            .attr('target', '_blank')
-            .attr('rel', 'noopener noreferrer')
-            .attr('title', selectedTask);
-
-        $('<span></span>')
-            .addClass('task-wheel-label')
-            .text(getTaskLabel(selectedTask))
-            .appendTo($item);
-        $track.append($item);
-        $track.css('transform', 'translateY(0)');
+            $('<span></span>')
+                .addClass('task-wheel-label')
+                .text(getTaskLabel(task))
+                .appendTo($item);
+            $track.append($item);
+        });
+        $('<div class="task-wheel-spacer"></div>').appendTo($track);
+        $track.css('transform', `translateY(${-taskState.selectedIndex * TASK_WHEEL_ITEM_HEIGHT}px)`);
     }
 
     function mapTaskStateError(errorCode) {
@@ -1118,6 +1197,7 @@
         $('#sessionUserName').text(name);
         $('#sessionTopbar').css('display', 'flex');
         $('#changeNameBtn, #averageVote').show();
+        setAverageVoteDisplay('0');
         $('#adminWrapper').css('visibility', 'visible');
         if (isAdmin) {
             $('#adminNoteForm').show();
@@ -1320,6 +1400,7 @@
     }
 
     function calcAvg(numericVotes) {
+        if (!numericVotes.length) return '0';
         return (numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length).toFixed(0);
     }
 
@@ -1411,12 +1492,11 @@
         });
 
         const roundedAvg = calcAvg(numericVotes);
-        $('#averageVote1').val(roundedAvg);
         if (revealed && numericVotes.length > 0) {
+            setAverageVoteDisplay(roundedAvg);
             $('#averageVote').transition('pulse');
-            $('averageVote').text(`${roundedAvg}`);
         } else {
-            $('averageVote').text('-');
+            setAverageVoteDisplay('0');
         }
     }
 
@@ -1427,6 +1507,7 @@
         revealed = state;
         socket.emit('get_players', roomId);
         if (!state) {
+            setAverageVoteDisplay('0');
             // Round reset: clear stored vote
             try { localStorage.removeItem(getVoteKey()); } catch (e) {}
             $.toast({
