@@ -865,10 +865,10 @@
 
             <div class="ui segment" id="joinPanel">
                 <div class="join-grid">
-                    <div class="join-field" id="roomBuilderField">
-                        <label for="roomSuffix">Постфикс комнаты</label>
+                    <div class="join-field ui input" id="roomBuilderField">
+                        <label for="roomSuffix">Название комнаты</label>
                         <input type="text" id="roomSuffix" placeholder="backend-sprint-42">
-                        <div class="join-meta" id="roomHelpText">Введите понятный постфикс. Сервис добавит короткий уникальный суффикс.</div>
+                        <div class="join-meta" id="roomHelpText">Введите уникальное название комнаты</div>
                     </div>
                     <div class="join-field hidden" id="roomLinkField">
                         <label for="roomLinkInput">Ссылка комнаты</label>
@@ -878,7 +878,7 @@
                         </div>
                         <div class="join-meta" id="roomLinkHelpText">Скопируйте ссылку и отправьте её команде.</div>
                     </div>
-                    <div class="join-field">
+                    <div class="join-field  ui input">
                         <label for="playerName">Ваше имя</label>
                         <input type="text" id="playerName" placeholder="Ваше имя">
                         <div class="join-meta" id="roomStatusText">Сначала создайте комнату или откройте готовую ссылку.</div>
@@ -993,7 +993,8 @@
     const apiBaseUrl = isFileMode ? 'https://pocker.webpaul.ru' : '';
     const socket = isFileMode ? io(apiBaseUrl) : io();
 
-    const ROOM_ID_PATTERN = /^(?<suffix>[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*)-(?<token>[a-f0-9]{6})$/u;
+    const ROOM_ID_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N}_-]{0,63}$/u;
+    const RESERVED_ROOM_IDS = new Set(['health', 'version', 'index-html', 'robots-txt', 'socket-io']);
 
     let roomId = '';
     let currentRoomMeta = null;
@@ -1059,37 +1060,45 @@
         return String(value || '')
             .normalize('NFKC')
             .trim()
-            .toLowerCase();
+            .toLowerCase()
+            .replace(/[^\p{L}\p{N}_-]+/gu, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 64)
+            .replace(/^-+|-+$/g, '');
     }
 
     function normalizeRoomSuffix(value) {
-        return String(value || '')
-            .normalize('NFKC')
-            .trim()
-            .toLowerCase()
-            .replace(/[^\p{L}\p{N}]+/gu, '-')
-            .replace(/^-+|-+$/g, '')
-            .slice(0, 48)
-            .replace(/^-+|-+$/g, '');
+        return normalizeRoomId(value);
     }
 
     function buildRoomMeta(targetRoomId) {
         const normalizedRoomId = normalizeRoomId(targetRoomId);
-        const match = normalizedRoomId.match(ROOM_ID_PATTERN);
-        if (!match || !match.groups) {
+        if (!normalizedRoomId || RESERVED_ROOM_IDS.has(normalizedRoomId) || !ROOM_ID_PATTERN.test(normalizedRoomId)) {
             return null;
         }
 
         return {
             id: normalizedRoomId,
-            suffix: match.groups.suffix,
-            label: match.groups.suffix
+            suffix: normalizedRoomId,
+            label: normalizedRoomId
         };
     }
 
     function getRoomIdFromLocation() {
-        const params = new URLSearchParams(window.location.search);
-        return normalizeRoomId(params.get('room'));
+        if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+            return '';
+        }
+
+        const segments = window.location.pathname.split('/').filter(Boolean);
+        if (segments.length !== 1) {
+            return '';
+        }
+
+        try {
+            return normalizeRoomId(decodeURIComponent(segments[0]));
+        } catch (error) {
+            return normalizeRoomId(segments[0]);
+        }
     }
 
     function buildRoomLink(targetRoomId = roomId) {
@@ -1099,7 +1108,8 @@
         }
 
         const url = new URL(window.location.href);
-        url.searchParams.set('room', normalizedRoomId);
+        url.pathname = `/${encodeURIComponent(normalizedRoomId)}/`;
+        url.search = '';
         return url.toString();
     }
 
@@ -1108,12 +1118,14 @@
         const normalizedRoomId = normalizeRoomId(nextRoomId);
 
         if (normalizedRoomId) {
-            url.searchParams.set('room', normalizedRoomId);
+            url.pathname = `/${encodeURIComponent(normalizedRoomId)}/`;
+            url.search = '';
         } else {
-            url.searchParams.delete('room');
+            url.pathname = '/';
+            url.search = '';
         }
 
-        const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+        const nextUrl = `${url.pathname}${url.hash}`;
         window.history.replaceState({}, '', nextUrl);
     }
 
@@ -1134,7 +1146,7 @@
         $('#copyRoomLinkTopBtn').toggle(Boolean(name) && hasRoom);
 
         if (!hasRoom) {
-            $('#roomHelpText').text('Введите понятный постфикс. Сервис добавит короткий уникальный суффикс.');
+            $('#roomHelpText').text('Введите slug комнаты. Он и станет адресом вида /slug/.');
             $('#roomStatusText').text('Сначала создайте комнату или откройте готовую ссылку.');
             return;
         }
@@ -1398,6 +1410,8 @@
         if (errorCode === 'ACK_TIMEOUT') return 'Сервер не ответил на запрос создания комнаты';
         if (errorCode === 'SOCKET_DISCONNECTED') return 'Нет подключения к серверу';
         if (errorCode === 'ROOM_SUFFIX_REQUIRED') return 'Введите постфикс для новой комнаты';
+        if (errorCode === 'ROOM_SUFFIX_INVALID') return 'Используйте только буквы, цифры, дефис или underscore';
+        if (errorCode === 'ROOM_ALREADY_EXISTS') return 'Комната с таким адресом уже существует';
         return `Ошибка создания комнаты: ${errorCode || 'UNKNOWN_ERROR'}`;
     }
 

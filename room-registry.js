@@ -1,8 +1,12 @@
-const crypto = require('crypto');
-
-const ROOM_TOKEN_LENGTH = 6;
-const ROOM_SUFFIX_MAX_LENGTH = 48;
-const ROOM_ID_PATTERN = new RegExp(`^(?<suffix>[\\p{L}\\p{N}]+(?:-[\\p{L}\\p{N}]+)*)-(?<token>[a-f0-9]{${ROOM_TOKEN_LENGTH}})$`, 'u');
+const ROOM_ID_MAX_LENGTH = 64;
+const ROOM_ID_PATTERN = new RegExp(`^[\\p{L}\\p{N}](?:[\\p{L}\\p{N}_-]{0,${ROOM_ID_MAX_LENGTH - 1}})?$`, 'u');
+const RESERVED_ROOM_IDS = new Set([
+    'health',
+    'version',
+    'index-html',
+    'robots-txt',
+    'socket-io',
+]);
 
 function normalizeTaskState(taskState = {}) {
     const items = [...new Set((Array.isArray(taskState.items) ? taskState.items : [])
@@ -26,46 +30,40 @@ function normalizeRoomId(roomId) {
     return String(roomId || '')
         .normalize('NFKC')
         .trim()
-        .toLowerCase();
-}
-
-function normalizeRoomSuffix(roomSuffix) {
-    return String(roomSuffix || '')
-        .normalize('NFKC')
-        .trim()
         .toLowerCase()
-        .replace(/[^\p{L}\p{N}]+/gu, '-')
+        .replace(/[^\p{L}\p{N}_-]+/gu, '-')
         .replace(/^-+|-+$/g, '')
-        .slice(0, ROOM_SUFFIX_MAX_LENGTH)
+        .slice(0, ROOM_ID_MAX_LENGTH)
         .replace(/^-+|-+$/g, '');
 }
 
-function parseRoomId(roomId) {
+function normalizeRoomSuffix(roomSuffix) {
+    return normalizeRoomId(roomSuffix);
+}
+
+function isReservedRoomId(roomId) {
+    return RESERVED_ROOM_IDS.has(normalizeRoomId(roomId));
+}
+
+function isValidRoomId(roomId) {
     const normalizedRoomId = normalizeRoomId(roomId);
-    const match = normalizedRoomId.match(ROOM_ID_PATTERN);
-    if (!match || !match.groups) {
+    return Boolean(normalizedRoomId)
+        && !isReservedRoomId(normalizedRoomId)
+        && ROOM_ID_PATTERN.test(normalizedRoomId);
+}
+
+function createPublicRoom(roomId, createdAt = null) {
+    const normalizedRoomId = normalizeRoomId(roomId);
+    if (!isValidRoomId(normalizedRoomId)) {
         return null;
     }
 
     return {
         id: normalizedRoomId,
-        suffix: match.groups.suffix,
-        token: match.groups.token,
-    };
-}
-
-function createPublicRoom(roomId, createdAt = null) {
-    const parsed = parseRoomId(roomId);
-    if (!parsed) {
-        return null;
-    }
-
-    return {
-        id: parsed.id,
-        suffix: parsed.suffix,
-        label: parsed.suffix,
+        suffix: normalizedRoomId,
+        label: normalizedRoomId,
         createdAt,
-        joinPath: `/?room=${encodeURIComponent(parsed.id)}`,
+        joinPath: `/${encodeURIComponent(normalizedRoomId)}/`,
     };
 }
 
@@ -85,27 +83,23 @@ function createInitialRoomState(roomId) {
 function createRoomRegistry() {
     const roomStates = new Map();
 
-    function isValidRoomId(roomId) {
-        return Boolean(parseRoomId(roomId));
-    }
-
     function createRoom({ roomSuffix }) {
-        const normalizedSuffix = normalizeRoomSuffix(roomSuffix);
-        if (!normalizedSuffix) {
+        const normalizedRoomId = normalizeRoomSuffix(roomSuffix);
+        if (!normalizedRoomId) {
             throw new Error('ROOM_SUFFIX_REQUIRED');
         }
+        if (!isValidRoomId(normalizedRoomId)) {
+            throw new Error('ROOM_SUFFIX_INVALID');
+        }
+        if (roomStates.has(normalizedRoomId)) {
+            throw new Error('ROOM_ALREADY_EXISTS');
+        }
 
-        let roomId = '';
-        do {
-            const token = crypto.randomBytes(4).toString('hex').slice(0, ROOM_TOKEN_LENGTH);
-            roomId = `${normalizedSuffix}-${token}`;
-        } while (roomStates.has(roomId));
-
-        const roomState = createInitialRoomState(roomId);
-        roomStates.set(roomId, roomState);
+        const roomState = createInitialRoomState(normalizedRoomId);
+        roomStates.set(normalizedRoomId, roomState);
 
         return {
-            roomId,
+            roomId: normalizedRoomId,
             room: roomState.room,
             roomState,
         };
@@ -314,6 +308,7 @@ function createRoomRegistry() {
     }
 
     return {
+        isReservedRoomId,
         isValidRoomId,
         createRoom,
         getPublicRoom,

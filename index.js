@@ -26,6 +26,35 @@ function renderIndexHtml(template) {
     return template.replace(/__APP_VERSION__/g, APP_VERSION_LABEL);
 }
 
+function extractRoomIdFromPathname(pathname) {
+    const segments = String(pathname || '/')
+        .split('/')
+        .filter(Boolean);
+    if (segments.length !== 1) {
+        return '';
+    }
+
+    try {
+        return decodeURIComponent(segments[0]);
+    } catch (error) {
+        return segments[0];
+    }
+}
+
+function serveIndexHtml(res) {
+    const filePath = path.join(__dirname, 'index.html');
+    fs.readFile(filePath, (err, data) => {
+        if (err) {
+            res.writeHead(500);
+            res.end('Error loading index.html');
+            return;
+        }
+
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(renderIndexHtml(data.toString('utf8')));
+    });
+}
+
 function ensureYouTrackConfig() {
     if (!YOU_TRACK_BASE_URL || !YOU_TRACK_TOKEN) {
         throw new Error('YOUTRACK_NOT_CONFIGURED');
@@ -75,6 +104,7 @@ async function setStoryPointsInYouTrack(issueIdReadable, storyPoints) {
 const server = http.createServer((req, res) => {
     const requestUrl = new URL(req.url || '/', 'http://localhost');
     const { pathname } = requestUrl;
+    const roomIdFromPath = extractRoomIdFromPathname(pathname);
 
     if (pathname === '/health') {
         respondJson(res, 200, {
@@ -95,17 +125,21 @@ const server = http.createServer((req, res) => {
     }
 
     if (pathname === '/' || pathname === '/index.html') {
-        const filePath = path.join(__dirname, 'index.html');
-        fs.readFile(filePath, (err, data) => {
-            if (err) {
-                res.writeHead(500);
-                res.end('Error loading index.html');
-                return;
-            }
+        serveIndexHtml(res);
+        return;
+    }
 
-            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-            res.end(renderIndexHtml(data.toString('utf8')));
-        });
+    if (roomIdFromPath && roomRegistry.isValidRoomId(roomIdFromPath)) {
+        if (!pathname.endsWith('/')) {
+            const normalizedRoomId = roomRegistry.getPublicRoom(roomIdFromPath).id;
+            res.writeHead(302, {
+                Location: `/${encodeURIComponent(normalizedRoomId)}/`,
+            });
+            res.end();
+            return;
+        }
+
+        serveIndexHtml(res);
         return;
     }
 

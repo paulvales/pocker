@@ -90,10 +90,12 @@ describe('socket server', () => {
     server.close(done);
   });
 
-  test('exposes health and version info over http', async () => {
+  test('exposes health and version info over http and serves room paths', async () => {
     const health = await request(port, '/health');
     const version = await request(port, '/version');
     const home = await request(port, '/');
+    const roomHome = await request(port, '/backend-sprint-42/');
+    const roomRedirect = await request(port, '/backend-sprint-42');
 
     expect(health.statusCode).toBe(200);
     expect(JSON.parse(health.body)).toEqual({
@@ -112,9 +114,15 @@ describe('socket server', () => {
     expect(home.statusCode).toBe(200);
     expect(home.body).toContain(`v ${packageJson.version}`);
     expect(home.body).not.toContain('__APP_VERSION__');
+
+    expect(roomHome.statusCode).toBe(200);
+    expect(roomHome.body).toContain(`v ${packageJson.version}`);
+
+    expect(roomRedirect.statusCode).toBe(302);
+    expect(roomRedirect.headers.location).toBe('/backend-sprint-42/');
   });
 
-  test('creates a unique room id from the requested suffix', async () => {
+  test('creates a room id directly from the requested suffix', async () => {
     const client = await connectClient(port);
 
     try {
@@ -123,13 +131,50 @@ describe('socket server', () => {
       expect(result).toEqual({
         ok: true,
         room: expect.objectContaining({
-          id: expect.stringMatching(/^backend-sprint-42-[a-f0-9]{6}$/),
+          id: 'backend-sprint-42',
           suffix: 'backend-sprint-42',
           label: 'backend-sprint-42',
-          joinPath: expect.stringContaining('/?room='),
+          joinPath: '/backend-sprint-42/',
         }),
       });
-      expect(result.room.joinPath).toBe(`/?room=${encodeURIComponent(result.room.id)}`);
+    } finally {
+      client.close();
+    }
+  });
+
+  test('preserves underscore in a requested room slug', async () => {
+    const client = await connectClient(port);
+
+    try {
+      const result = await createRoom(client, 'qa_team');
+
+      expect(result).toEqual({
+        ok: true,
+        room: expect.objectContaining({
+          id: 'qa_team',
+          suffix: 'qa_team',
+          label: 'qa_team',
+          joinPath: '/qa_team/',
+        }),
+      });
+    } finally {
+      client.close();
+    }
+  });
+
+  test('rejects creating a room when the slug is already taken', async () => {
+    const client = await connectClient(port);
+
+    try {
+      await expect(createRoom(client, 'shared-room')).resolves.toEqual(expect.objectContaining({
+        ok: true,
+        room: expect.objectContaining({ id: 'shared-room' }),
+      }));
+
+      await expect(createRoom(client, 'shared-room')).resolves.toEqual({
+        ok: false,
+        error: 'ROOM_ALREADY_EXISTS',
+      });
     } finally {
       client.close();
     }
@@ -140,7 +185,7 @@ describe('socket server', () => {
 
     try {
       const result = await joinRoom(client, {
-        roomId: 'invalid-room-id',
+        roomId: 'socket.io',
         name: 'A',
       });
 
