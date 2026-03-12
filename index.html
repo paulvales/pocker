@@ -161,6 +161,481 @@
             border: 1px solid #e0e1e2;
         }
 
+        :root {
+            --app-content-width: 860px;
+            --task-sidebar-width: 210px;
+            --task-sidebar-gap: 1rem;
+        }
+
+        .app-layout {
+            position: relative;
+            width: 100%;
+            margin: 1rem 0 0;
+        }
+
+        .app-sidebar {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: var(--task-sidebar-width);
+            margin-left: calc((var(--app-content-width) / -2) - var(--task-sidebar-width) - var(--task-sidebar-gap));
+        }
+
+        .app-sidebar-stack {
+            position: sticky;
+            top: 1rem;
+        }
+
+        .app-content {
+            width: min(var(--app-content-width), calc(100% - 2rem));
+            margin: 0 auto;
+            min-width: 0;
+        }
+
+        .app-content > .ui.centered.grid.container {
+            width: 100%;
+            margin: 0 !important;
+        }
+
+        .app-content .ui.grid > .twelve.wide.column {
+            width: 100% !important;
+            max-width: 100% !important;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .page-hero {
+            order: 0;
+            margin-bottom: 1rem !important;
+        }
+
+        .session-topbar {
+            order: -1;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin: 0 0 1rem 0;
+            padding: .75rem .9rem !important;
+            border: 1px solid #e0e1e2 !important;
+            border-radius: .5rem !important;
+            background: #fff !important;
+            box-shadow: none !important;
+        }
+
+        .session-topbar-main {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            min-width: 0;
+        }
+
+        .session-topbar-user {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: .75rem;
+            min-width: 0;
+        }
+
+        .session-badge.ui.label {
+            display: inline-flex;
+            align-items: center;
+            gap: .45rem;
+            margin: 0 !important;
+            padding: .55em .8em;
+        }
+
+        .session-badge.ui.label i.icon {
+            margin: 0 !important;
+        }
+
+        .session-badge-text {
+            color: rgba(0, 0, 0, 0.58);
+        }
+
+        .session-badge-value {
+            color: rgba(0, 0, 0, 0.85);
+            font-weight: 700;
+        }
+
+        #sessionUserName {
+            max-width: 16rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #joinPanel {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+        }
+
+        #joinPanel .button {
+            margin: 0 !important;
+        }
+
+        .top-controls {
+            display: none;
+            align-items: center;
+            gap: .85rem;
+            margin: 0 0 .75rem 0;
+            flex-wrap: wrap;
+        }
+
+        .top-controls.admin-mode {
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: nowrap;
+        }
+
+        .top-controls.viewer-mode {
+            justify-content: flex-start;
+        }
+
+        #adminControls {
+            margin: 0 !important;
+            flex-shrink: 0;
+        }
+
+        #adminControls.ui.big.buttons {
+            width: auto !important;
+        }
+
+        #adminControls.ui.big.buttons .button {
+            margin: 0 !important;
+        }
+
+        .task-wheel-section {
+            display: none;
+            margin: 0;
+            padding: .75rem .9rem !important;
+            border-radius: .28571429rem !important;
+            background: #fff !important;
+            border: 1px solid #e0e1e2 !important;
+            box-shadow: none !important;
+        }
+
+        .task-wheel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: .55rem;
+        }
+
+        .task-wheel-title {
+            font-size: .93rem;
+            font-weight: 700;
+            color: rgba(0, 0, 0, 0.7);
+        }
+
+        .task-wheel-shell {
+            position: relative;
+            width: 100%;
+        }
+
+        .task-wheel-arrow.ui.button {
+            position: absolute;
+            right: .25rem;
+            z-index: 4;
+            width: 2rem;
+            height: 2rem;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            padding: 0 !important;
+            margin: 0 !important;
+            border-radius: .45rem !important;
+            box-shadow: none !important;
+        }
+
+        .task-wheel-arrow.ui.button > .icon {
+            margin: 0 !important;
+            line-height: 1 !important;
+            font-size: .95rem;
+        }
+
+        #taskPrevBtn.task-wheel-arrow.ui.button {
+            top: .15rem;
+        }
+
+        #taskNextBtn.task-wheel-arrow.ui.button {
+            bottom: .15rem;
+        }
+
+        .task-wheel-arrow.ui.button.disabled {
+            opacity: .4 !important;
+            pointer-events: none;
+        }
+
+        .task-wheel-viewport {
+            position: relative;
+            width: 100%;
+            height: 120px;
+            overflow: hidden;
+            border-radius: .28571429rem;
+            border: none;
+            background: linear-gradient(180deg, #f9fafb 0%, #f3f4f5 100%);
+        }
+
+        .task-wheel-viewport::before,
+        .task-wheel-viewport::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 40px;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .task-wheel-viewport::before {
+            top: 0;
+            background: linear-gradient(180deg, rgba(249, 250, 251, 0.98) 0%, rgba(249, 250, 251, 0) 100%);
+        }
+
+        .task-wheel-viewport::after {
+            bottom: 0;
+            background: linear-gradient(0deg, rgba(243, 244, 245, 0.98) 0%, rgba(243, 244, 245, 0) 100%);
+        }
+
+        .task-wheel-highlight {
+            position: absolute;
+            left: .4rem;
+            right: .4rem;
+            top: 40px;
+            height: 40px;
+            border-radius: .28571429rem;
+            background: rgba(255, 255, 255, 0.98);
+            border: 1px solid rgba(34, 36, 38, 0.08);
+            box-shadow: none;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .task-wheel-track {
+            position: relative;
+            z-index: 3;
+            transition: transform .28s ease;
+            will-change: transform;
+        }
+
+        .task-wheel-spacer {
+            height: 40px;
+        }
+
+        .task-wheel-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 40px;
+            padding: 0 2.5rem 0 .65rem;
+            color: rgba(0, 0, 0, 0.42);
+            text-decoration: none;
+            font-weight: 600;
+            text-align: center;
+            transition: opacity .24s ease, transform .24s ease, color .24s ease;
+        }
+
+        .task-wheel-item:hover {
+            color: #1b1c1d;
+        }
+
+        .task-wheel-item.active {
+            color: #1b1c1d;
+        }
+
+        .task-wheel-item.distance-0 {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .task-wheel-item.distance-1 {
+            /*opacity: .18;*/
+            /*transform: scale(.84);*/
+        }
+
+        .task-wheel-item.distance-2,
+        .task-wheel-item.distance-far {
+            opacity: 0;
+            transform: scale(.72);
+        }
+
+        .task-wheel-label {
+            display: block;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: .79rem;
+            transition: font-size .24s ease, font-weight .24s ease, letter-spacing .24s ease;
+        }
+
+        .task-wheel-item.active .task-wheel-label {
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: -.02em;
+        }
+
+        .task-wheel-section.viewer-mode {
+            padding: .6rem .8rem !important;
+        }
+
+        .task-wheel-section.viewer-mode .task-wheel-header {
+            margin-bottom: .35rem;
+        }
+
+        .task-wheel-section.viewer-mode .task-wheel-viewport {
+            height: 40px;
+            background: transparent;
+        }
+
+        .task-wheel-section.viewer-mode .task-wheel-viewport::before,
+        .task-wheel-section.viewer-mode .task-wheel-viewport::after,
+        .task-wheel-section.viewer-mode .task-wheel-highlight {
+            display: none;
+        }
+
+        .task-wheel-section.viewer-mode .task-wheel-item {
+            padding: 0 .25rem;
+            color: #2185d0;
+        }
+
+        .task-wheel-section.viewer-mode .task-wheel-item.active .task-wheel-label {
+            font-size: .94rem;
+        }
+
+        .task-wheel-section.viewer-mode .task-wheel-arrow {
+            display: none !important;
+        }
+
+        .estimation-mode-panel {
+            display: none;
+            align-items: center;
+            flex-shrink: 0;
+            min-width: 0;
+        }
+
+        .estimation-mode-content {
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+        }
+
+        .estimation-mode-label {
+            display: inline-flex;
+            align-items: center;
+            margin: 0 !important;
+            padding: .45em .8em;
+            border-radius: .28571429rem;
+            border: 1px solid #c5dff6;
+            background: #f8fbff;
+            color: #2185d0;
+            font-size: .86rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .estimation-mode-value {
+            color: inherit;
+        }
+
+        .estimation-mode-buttons {
+            display: none;
+        }
+
+        .estimation-mode-buttons .ui.button {
+            margin: 0 !important;
+        }
+
+        .estimation-mode-panel.admin-mode {
+            display: flex !important;
+            margin-left: auto;
+        }
+
+        .estimation-mode-panel.admin-mode .estimation-mode-content {
+            justify-content: flex-end;
+        }
+
+        .estimation-mode-panel.admin-mode .estimation-mode-label {
+            display: none;
+        }
+
+        .estimation-mode-panel.admin-mode .estimation-mode-buttons {
+            display: inline-flex;
+        }
+
+        .estimation-mode-panel.viewer-mode {
+            display: block !important;
+        }
+
+        .estimation-mode-panel.viewer-mode .estimation-mode-content {
+            display: block;
+        }
+
+        .estimation-mode-panel.viewer-mode .estimation-mode-buttons {
+            display: none !important;
+        }
+
+        #taskListActions {
+            display: none;
+            padding: 0 !important;
+            margin: 0 0 .75rem 0 !important;
+        }
+
+        #taskListActions .ui.button {
+            width: 100%;
+            margin: 0 !important;
+        }
+
+        @media (max-width: 1320px) {
+            .app-layout {
+                display: flex;
+                flex-direction: column;
+                margin-top: .5rem;
+            }
+
+            .app-content {
+                width: min(var(--app-content-width), calc(100% - 1rem));
+            }
+
+            .app-sidebar {
+                position: static;
+                max-width: none;
+                width: min(var(--app-content-width), calc(100% - 1rem));
+                margin: 0 auto 1rem;
+                order: 2;
+            }
+
+            .app-sidebar-stack {
+                position: static;
+            }
+
+            .app-content {
+                order: 1;
+            }
+
+            .session-topbar {
+                flex-wrap: wrap;
+            }
+
+            .session-topbar-user {
+                justify-content: flex-start;
+            }
+
+            .top-controls.admin-mode {
+                flex-wrap: wrap;
+            }
+
+            .estimation-mode-panel.admin-mode {
+                margin-left: 0;
+            }
+        }
+
         .ui.card, .ui.cards > .card {
             border-radius: .5em;
         }
@@ -183,8 +658,15 @@
             margin: 0 !important;
         }
         .httpsNotice{
-            padding: 1em;
-            position: absolute;
+            position: fixed;
+            bottom: .75rem;
+            right: .9rem;
+            z-index: 20;
+            font-size: .85rem;
+            background: rgba(255, 255, 255, 0.92);
+            padding: .35rem .55rem;
+            border-radius: .28571429rem;
+            box-shadow: 0 1px 2px rgba(34, 36, 38, 0.08);
         }
         .httpsNotice a{
             border-bottom: 1px dotted;
@@ -192,32 +674,91 @@
     </style>
 </head>
 <body>
-<div class="httpsNotice">
-    <a href="https://www.notion.so/303d22895e1580e88e47cb42885696b2" target="_blank">если проблемы с сертификатом</a>
+<div class="ui secondary  menu" id="sessionTopbar" style="display:none;">>
+
+        <div class="ui label session-badge item" id="adminWrapper">
+            <i class="chess king icon"></i>
+            <span class="session-badge-text">Текущий админ:</span>
+            <span class="session-badge-value" id="currentAdmin">---</span>
+        </div>
+
+    <div class="right menu">
+        <div class="item">
+            <button class="ui  right labeled icon button" id="changeNameBtn" style="display:none;">
+                <span class="session-badge-value" id="sessionUserName"></span>
+                <i class="close icon"></i>
+            </button>
+
+        </div>
+
+    </div>
 </div>
-<div class="ui centered grid container">
-    <div class="twelve wide column">
-        <div class="ui basic center aligned segment">
-            <div class="ui basic center aligned segment" style="margin-bottom: 0;">
-                <h2 class="ui  header">Скрум Покер Онлине</h2>
-                <div class="ui label" id="adminWrapper"><i class="chess king icon"></i>Текущий админ: <span
-                        id="currentAdmin"></span></div>
+
+<div class="app-layout">
+    <aside class="app-sidebar" id="taskSidebar" style="display:none;">
+        <div class="app-sidebar-stack">
+            <div class="ui basic segment" id="taskListActions" style="display:none; padding: 0; margin: 0 0 1rem 0;">
+                <button class="ui blue button" id="loadTaskListBtn">Загрузить список</button>
             </div>
 
-            <div class="ui action input">
+            <div class="ui segment task-wheel-section" id="taskPickerSection" style="display:none;">
+                <div class="task-wheel-header">
+                    <div class="task-wheel-title">Текущая задача</div>
+                </div>
+                <div class="task-wheel-shell">
+                    <button class="ui icon button task-wheel-arrow" id="taskPrevBtn" style="display:none;">
+                        <i class="angle up icon"></i>
+                    </button>
+                    <div class="task-wheel-viewport">
+                        <div class="task-wheel-highlight"></div>
+                        <div class="task-wheel-track" id="taskWheelTrack"></div>
+                    </div>
+                    <button class="ui icon button task-wheel-arrow" id="taskNextBtn" style="display:none;">
+                        <i class="angle down icon"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <div class="app-content">
+        <div class="ui centered grid container">
+    <div class="twelve wide column">
+        <div class="ui basic center aligned segment page-hero" style="padding-top: 0;">
+            <div class="ui basic center aligned " style="margin-bottom: 0;">
+                <h2 class="ui  header">Скрум Покер Онлине</h2>
+            </div>
+
+            <div class="ui action input" id="joinPanel">
                 <input type="text" id="playerName" placeholder="Ваше имя">
                 <button class="ui button onlyAuth" id="iAmAdmin">Я админ</button>
                 <button class="ui primary button onlyAuth" id="joinBtn">Коннект</button>
-                <button class="ui orange button" id="changeNameBtn" style="display:none;">выйти</button>
             </div>
         </div>
+
         <input type="hidden" id="isAdmin" value="0">
-        <div class="ui basic segment" id="common"  style="margin-bottom: 0">
+        <div class="ui basic " id="common"  style="margin-bottom: 0">
 
 
-            <div id="adminControls" class="ui big buttons" style="display:none; margin: 10px 0;">
-                <button class="ui green button" id="revealBtn">Показать</button>
-                <button class="ui red button" id="resetBtn">Сбросить</button>
+            <div class="top-controls" id="topControls" style="display:none;">
+                <div id="adminControls" class="ui  buttons" style="display:none;">
+                    <button class="ui green button" id="revealBtn">Показать</button>
+                    <button class="ui red button" id="resetBtn">Сбросить</button>
+<!--                <button class="ui teal button" id="setStoryPointsBtn">Проставить</button>-->
+            </div>
+
+            <div class="estimation-mode-panel" id="estimationModePanel" style="display:none;">
+                <div class="estimation-mode-content">
+                    <div class="estimation-mode-label">
+                        Оцениваем: <span class="estimation-mode-value" id="estimationModeValue">Поинты</span>
+                    </div>
+                    <div class="ui  buttons estimation-mode-buttons" id="estimationModeButtons">
+                        <button class="ui button" id="modePointsBtn">Поинты</button>
+                        <button class="ui button" id="modeHoursBtn">Часы</button>
+                    </div>
+                </div>
+            </div>
+
             </div>
 
             <div class="ui form" id="adminNoteForm" style="display:none;">
@@ -233,7 +774,7 @@
 
 
         </div>
-        <div class="ui basic segment" style="margin-top: 0">
+        <div class="ui basic " style="margin-top: 0">
             <div id="players">
 
 
@@ -248,20 +789,44 @@
 </div>
 </div>
 <div class="ui fixed bottom sticky">
-    <div class="ui center aligned message" id="averageVote" style="display:none;">
-        <h2 class="ui header">
-            <averageVote>-</averageVote>
-            <div class="sub header">Средняя оценка</div>
-        </h2>
+    <div class=" ui raised  card gradient-2 tiny statistic" id="averageVote" style="display:none;">
+        <div class="value">
+          13
+        </div>
+        <div class="label">
+            Средняя оценка
+        </div>
+    </div>
+
+</div>
+
+    <div class="httpsNotice">
+        <span>v 1.5.0</span>
+        <a href="https://www.notion.so/303d22895e1580e88e47cb42885696b2" target="_blank">если проблемы с сертификатом</a>
+    </div>
+<div class="ui small modal" id="taskListModal">
+    <i class="close icon"></i>
+    <div class="header">Загрузить список задач</div>
+    <div class="content">
+        <div class="ui form">
+            <div class="field">
+                <label>Вставьте ссылки на задачи</label>
+                <textarea id="taskListInput" rows="10" placeholder="https://tracker.example/ABC-123&#10;https://tracker.example/ABC-124&#10;или разделите их пробелами или запятыми"></textarea>
+            </div>
+        </div>
+    </div>
+    <div class="actions">
+        <div class="ui cancel button">Отмена</div>
+        <div class="ui primary button" id="saveTaskListBtn">Сохранить</div>
     </div>
 </div>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.2/dist/semantic.min.js"></script>
 <script>
-    // const socket = io('pocker-production.up.railway.app');
-    const socket = io("pocker.webpaul.ru");
-    // const socket = io("");
+    const socket = window.location.protocol === 'file:'
+        ? io("pocker.webpaul.ru")
+        : io("http://localhost:3000");
 
     const roomId = 'default-room';
     let mySocketId = null;
@@ -292,7 +857,8 @@
         $(this).toggleClass('green');
     });
 
-    const points = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "20", "24", "32", "40", "?"];
+    const originalPoints = ["1", "2", "3", "5", "8", "13", "20", "40", "?"];
+    const allEstimateValues = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "20", "24", "32", "40", "?"];
 
     function getInitials(name) {
         return name.trim().split(' ').map(w => w.charAt(0).toUpperCase()).join('').slice(0, 2);
@@ -329,10 +895,206 @@
         }
     }
 
+    const TASK_WHEEL_ITEM_HEIGHT = 40;
+    let taskState = {
+        items: [],
+        selectedIndex: 0
+    };
+    let estimationMode = 'points';
+
+    function normalizeEstimationMode(mode) {
+        return mode === 'hours' ? 'hours' : 'points';
+    }
+
+    function normalizeTaskState(nextState = {}) {
+        const items = Array.from(new Set((Array.isArray(nextState.items) ? nextState.items : [])
+            .map(item => String(item || '').trim())
+            .filter(Boolean)));
+        const rawIndex = Number(nextState.selectedIndex);
+        const safeIndex = Number.isFinite(rawIndex) ? Math.trunc(rawIndex) : 0;
+        const maxIndex = items.length ? items.length - 1 : 0;
+
+        return {
+            items,
+            selectedIndex: items.length ? Math.max(0, Math.min(safeIndex, maxIndex)) : 0
+        };
+    }
+
+    function parseTaskListInput(raw) {
+        return Array.from(new Set(String(raw || '')
+            .split(/[\s,]+/)
+            .map(item => item.trim())
+            .filter(Boolean)));
+    }
+
+    function getIssueIdFromText(text) {
+        const match = String(text || '').match(/\b([A-Za-z][A-Za-z0-9_]*-\d+)\b/);
+        return match ? match[1].toUpperCase() : '';
+    }
+
+    function getTaskLabel(task) {
+        const issueId = getIssueIdFromText(task);
+        if (issueId) return issueId;
+
+        try {
+            const parsed = new URL(task);
+            const parts = parsed.pathname.split('/').filter(Boolean);
+            const lastSegment = parts.pop();
+            return decodeURIComponent(lastSegment || parsed.hostname);
+        } catch (error) {
+            return task.length > 42 ? `${task.slice(0, 39)}...` : task;
+        }
+    }
+
+    function renderEstimationMode() {
+        estimationMode = normalizeEstimationMode(estimationMode);
+        const isJoined = Boolean(name);
+
+        $('#topControls')
+            .css('display', isJoined ? 'flex' : 'none')
+            .toggleClass('admin-mode', isAdmin)
+            .toggleClass('viewer-mode', !isAdmin);
+        $('#adminControls').css('display', isJoined && isAdmin ? 'inline-flex' : 'none');
+        const modeLabel = estimationMode === 'hours' ? 'Часы' : 'Поинты';
+
+        $('#estimationModePanel')
+            .toggle(isJoined)
+            .toggleClass('admin-mode', isAdmin)
+            .toggleClass('viewer-mode', !isAdmin);
+        $('.estimation-mode-label').html(`<span class="estimation-mode-value" id="estimationModeValue">${modeLabel}</span>`);
+        $('#estimationModeButtons').css('display', isAdmin ? 'inline-flex' : 'none');
+        $('#modePointsBtn').toggleClass('blue active', estimationMode === 'points');
+        $('#modeHoursBtn').toggleClass('blue active', estimationMode === 'hours');
+        $('#averageVote .sub.header').text(estimationMode === 'hours' ? 'Средняя оценка в часах' : 'Средняя оценка в поинтах');
+    }
+
+    function renderTaskControls() {
+        const hasTasks = taskState.items.length > 0;
+        $('#taskSidebar').toggle(Boolean(name) && (isAdmin || hasTasks));
+        $('#taskListActions').toggle(isAdmin);
+        $('#loadTaskListBtn').text('Загрузить список');
+        $('#taskPickerSection')
+            .toggleClass('viewer-mode', !isAdmin)
+            .toggleClass('admin-mode', isAdmin);
+        $('.task-wheel-title').text(isAdmin ? 'Список задач' : 'Текущая задача');
+
+        const canNavigate = isAdmin && taskState.items.length > 0;
+        $('#taskPrevBtn, #taskNextBtn').toggle(canNavigate);
+        $('#taskPrevBtn').toggleClass('disabled', !canNavigate || taskState.selectedIndex <= 0);
+        $('#taskNextBtn').toggleClass('disabled', !canNavigate || taskState.selectedIndex >= taskState.items.length - 1);
+        renderEstimationMode();
+    }
+
+    function renderTaskWheel() {
+        taskState = normalizeTaskState(taskState);
+        const hasTasks = taskState.items.length > 0;
+        const $track = $('#taskWheelTrack');
+
+        renderTaskControls();
+        $('#taskPickerSection').toggle(hasTasks);
+        $track.empty();
+
+        if (!hasTasks) {
+            return;
+        }
+
+        if (isAdmin) {
+            $('<div class="task-wheel-spacer"></div>').appendTo($track);
+            taskState.items.forEach((task, index) => {
+                const distance = Math.abs(index - taskState.selectedIndex);
+                const distanceClass = distance === 0
+                    ? 'distance-0'
+                    : distance === 1
+                        ? 'distance-1'
+                        : distance === 2
+                            ? 'distance-2'
+                            : 'distance-far';
+                const $item = $('<a></a>')
+                    .addClass(`task-wheel-item ${distanceClass}${index === taskState.selectedIndex ? ' active' : ''}`)
+                    .attr('href', task)
+                    .attr('target', '_blank')
+                    .attr('rel', 'noopener noreferrer')
+                    .attr('title', task);
+
+                $('<span></span>')
+                    .addClass('task-wheel-label')
+                    .text(getTaskLabel(task))
+                    .appendTo($item);
+                $track.append($item);
+            });
+            $('<div class="task-wheel-spacer"></div>').appendTo($track);
+            $track.css('transform', `translateY(${-taskState.selectedIndex * TASK_WHEEL_ITEM_HEIGHT}px)`);
+            return;
+        }
+
+        const selectedTask = taskState.items[taskState.selectedIndex];
+        const $item = $('<a></a>')
+            .addClass('task-wheel-item active')
+            .attr('href', selectedTask)
+            .attr('target', '_blank')
+            .attr('rel', 'noopener noreferrer')
+            .attr('title', selectedTask);
+
+        $('<span></span>')
+            .addClass('task-wheel-label')
+            .text(getTaskLabel(selectedTask))
+            .appendTo($item);
+        $track.append($item);
+        $track.css('transform', 'translateY(0)');
+    }
+
+    function mapTaskStateError(errorCode) {
+        if (errorCode === 'ACK_TIMEOUT') return 'Сервер не ответил. Похоже, страница подключена к старой версии сервера без списка задач';
+        if (errorCode === 'SOCKET_DISCONNECTED') return 'Нет подключения к серверу';
+        if (errorCode === 'FORBIDDEN') return 'Только администратор может менять список задач';
+        if (errorCode === 'TASK_LIST_EMPTY') return 'Список задач пуст';
+        return `Ошибка списка задач: ${errorCode || 'UNKNOWN_ERROR'}`;
+    }
+
+    function emitWithAck(eventName, payload, timeoutMs = 4000) {
+        return new Promise(resolve => {
+            if (!socket.connected) {
+                resolve({ ok: false, error: 'SOCKET_DISCONNECTED' });
+                return;
+            }
+
+            let settled = false;
+            const timer = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                resolve({ ok: false, error: 'ACK_TIMEOUT' });
+            }, timeoutMs);
+
+            socket.emit(eventName, payload, result => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                resolve(result || { ok: false, error: 'UNKNOWN_ERROR' });
+            });
+        });
+    }
+
+    async function emitTaskSelection(direction) {
+        if (!isAdmin || !taskState.items.length) return;
+
+        const result = await emitWithAck('task_select', { roomId, direction });
+        if (!result || !result.ok) {
+            $.toast({
+                class: 'error',
+                message: mapTaskStateError(result && result.error)
+            });
+        }
+    }
+
     $('.ui.sticky').sticky({
         context: 'body',
         pushing: true,
         bottomOffset: 0
+    });
+
+    $('#taskListModal').modal({
+        autofocus: false,
+        observeChanges: true
     });
 
     function joinSession(newName, newIsAdmin) {
@@ -341,7 +1103,7 @@
         isAdmin = newIsAdmin;
         localStorage.setItem('pokerName', name);
         localStorage.setItem('pokerAdmin', isAdmin);
-        socket.emit('join', {roomId, name, isAdmin});
+        socket.emit('join', {roomId, name, isAdmin}, applyRoomState);
         // Re-apply saved vote after join (for page reloads)
         const savedVote = getVoteWithTTL(getVoteKey());
         if (savedVote) {
@@ -352,19 +1114,24 @@
         $('#isAdmin').prop('disabled', true);
         $('#joinBtn').prop('disabled', true);
         $('.onlyAuth').hide();
+        $('#joinPanel').hide();
+        $('#sessionUserName').text(name);
+        $('#sessionTopbar').css('display', 'flex');
         $('#changeNameBtn, #averageVote').show();
         $('#adminWrapper').css('visibility', 'visible');
         if (isAdmin) {
-            $('#adminControls').show();
             $('#adminNoteForm').show();
-            console.log('noteDisplay hide')
             $('#noteDisplay').hide();
+        } else {
+            $('#adminNoteForm').hide();
         }
+        renderTaskControls();
     }
 
     $(document).ready(() => {
         const savedName = localStorage.getItem('pokerName');
         const savedAdmin = localStorage.getItem('pokerAdmin') === 'true';
+        renderTaskWheel();
         if (savedName) joinSession(savedName, savedAdmin);
     });
 
@@ -408,10 +1175,149 @@
         if (isAdmin) socket.emit('reset', roomId);
     });
 
+    $('#loadTaskListBtn').click(() => {
+        $('#taskListInput').val(taskState.items.join('\n'));
+        $('#taskListModal').modal('show');
+    });
+
+    $('#saveTaskListBtn').click(async function () {
+        if (!isAdmin) return;
+
+        const items = parseTaskListInput($('#taskListInput').val());
+        const $btn = $(this);
+        $btn.addClass('loading disabled');
+
+        const result = await emitWithAck('task_list_update', { roomId, items });
+        $btn.removeClass('loading disabled');
+        if (!result || !result.ok) {
+            $.toast({
+                class: 'error',
+                message: mapTaskStateError(result && result.error)
+            });
+            return;
+        }
+
+        $('#taskListModal').modal('hide');
+        $.toast({
+            class: 'success',
+            message: items.length ? 'Список задач сохранен' : 'Список задач очищен'
+        });
+    });
+
+    $('#taskPrevBtn').click(() => {
+        emitTaskSelection(-1);
+    });
+
+    $('#taskNextBtn').click(() => {
+        emitTaskSelection(1);
+    });
+
+    $('#modePointsBtn').click(async () => {
+        if (!isAdmin) return;
+        const result = await emitWithAck('set_estimation_mode', { roomId, mode: 'points' });
+        if (!result || !result.ok) {
+            $.toast({
+                class: 'error',
+                message: mapTaskStateError(result && result.error)
+            });
+        }
+    });
+
+    $('#modeHoursBtn').click(async () => {
+        if (!isAdmin) return;
+        const result = await emitWithAck('set_estimation_mode', { roomId, mode: 'hours' });
+        if (!result || !result.ok) {
+            $.toast({
+                class: 'error',
+                message: mapTaskStateError(result && result.error)
+            });
+        }
+    });
+
+    function mapStoryPointsError(errorCode) {
+        if (errorCode === 'FORBIDDEN') return 'Только админ может проставлять Story points';
+        if (errorCode === 'NO_VOTES') return 'Нет голосов для расчета среднего';
+        if (errorCode === 'YOUTRACK_NOT_CONFIGURED') return 'YouTrack не настроен на сервере';
+        if (errorCode === 'ISSUE_NOT_FOUND_IN_NOTE') return 'В поле сообщения укажите задачу, например ABC-123';
+        return `Ошибка YouTrack: ${errorCode || 'UNKNOWN_ERROR'}`;
+    }
+
+    $('#setStoryPointsBtn').click(function () {
+        if (!isAdmin) return;
+        if (!revealed) {
+            $.toast({
+                class: 'warning',
+                message: 'Сначала нажмите "Показать", затем проставляйте Story points'
+            });
+            return;
+        }
+
+        const $btn = $(this);
+        $btn.addClass('loading disabled');
+        socket.emit('set_story_points', { roomId }, (result) => {
+            $btn.removeClass('loading disabled');
+            if (!result || !result.ok) {
+                $.toast({
+                    class: 'error',
+                    message: mapStoryPointsError(result && result.error)
+                });
+                return;
+            }
+
+            const summarySuffix = result.issueSummary ? ` - ${result.issueSummary}` : '';
+            $.toast({
+                class: 'success',
+                message: `${result.issueIdReadable}: Story points = ${result.average}${summarySuffix}`
+            });
+        });
+    });
+
     $('#adminNote').on('input keydown change', function () {
         const note = $(this).val();
         socket.emit('note_update', {roomId, note});
     });
+
+    function applyNote(note) {
+        const nextNote = String(note || '');
+
+        if (isAdmin) {
+            if ($('#adminNote').val() !== nextNote) {
+                $('#adminNote').val(nextNote);
+            }
+            $('#noteDisplay').hide().empty();
+            return;
+        }
+
+        if (nextNote.trim().length > 0) {
+            $('#noteDisplay').html(parseLinks(nextNote)).show();
+            return;
+        }
+
+        $('#noteDisplay').hide().empty();
+    }
+
+    function applyRoomState(roomState = {}) {
+        if (typeof roomState.revealed === 'boolean') {
+            revealed = roomState.revealed;
+        }
+
+        if (typeof roomState.estimationMode === 'string') {
+            estimationMode = normalizeEstimationMode(roomState.estimationMode);
+        }
+
+        if (roomState.taskState) {
+            taskState = normalizeTaskState(roomState.taskState);
+            renderTaskWheel();
+        }
+
+        if (Array.isArray(roomState.players)) {
+            renderPlayers(roomState.players);
+        }
+
+        if (typeof roomState.note === 'string') {
+            applyNote(roomState.note);
+        }
+    }
 
     function calcAvg(numericVotes) {
         return (numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length).toFixed(0);
@@ -435,8 +1341,8 @@
 
         if (current) {
             $('#voteButtons').empty().hide();
-            const originalPoints = ["1", "2", "3", "5", "8", "13", "20", "40", "?"];
-            points.forEach(p => {
+            const availableValues = estimationMode === 'hours' ? allEstimateValues : originalPoints;
+            availableValues.forEach(p => {
                 const isOriginal = originalPoints.includes(p);
                 const btn = $(`<button class="ui big button ${isOriginal ? 'orange' : ''}">${p}</button>`);
                 btn.click(() => {
@@ -530,8 +1436,17 @@
         }
     });
     socket.on('note_update', note => {
-        if (!isAdmin && note.length > 1) {
-            $('#noteDisplay').html(parseLinks(note)).show();
+        applyNote(note);
+    });
+    socket.on('task_state_update', nextTaskState => {
+        taskState = normalizeTaskState(nextTaskState);
+        renderTaskWheel();
+    });
+    socket.on('estimation_mode_update', nextMode => {
+        estimationMode = normalizeEstimationMode(nextMode);
+        renderEstimationMode();
+        if (name) {
+            socket.emit('get_players', roomId);
         }
     });
     socket.on('user_event', ({message, type}) => {
