@@ -278,14 +278,64 @@
         }
 
         #joinPanel {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0;
+            width: min(100%, 980px);
+            margin: 1rem auto 0;
+            padding: 1rem 1.1rem !important;
+            border: 1px solid #e0e1e2 !important;
+            border-radius: .75rem !important;
+            background: #fff !important;
+            box-shadow: none !important;
         }
 
-        #joinPanel .button {
+        .join-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) auto;
+            gap: .85rem;
+            align-items: end;
+        }
+
+        .join-field {
+            text-align: left;
+            min-width: 0;
+        }
+
+        .join-field label {
+            display: block;
+            margin-bottom: .35rem;
+            font-size: .86rem;
+            font-weight: 700;
+            color: rgba(0, 0, 0, 0.7);
+        }
+
+        .join-meta {
+            min-height: 1.2rem;
+            margin-top: .35rem;
+            font-size: .82rem;
+            color: rgba(0, 0, 0, 0.55);
+        }
+
+        .join-actions {
+            display: flex;
+            gap: .55rem;
+            align-items: stretch;
+        }
+
+        .join-actions .button {
             margin: 0 !important;
+            white-space: nowrap;
+        }
+
+        .join-field.hidden {
+            display: none;
+        }
+
+        .join-room-link {
+            display: flex;
+            gap: .5rem;
+        }
+
+        .join-room-link input[readonly] {
+            flex: 1 1 auto;
         }
 
         .top-controls {
@@ -696,6 +746,14 @@
             .estimation-mode-panel.admin-mode {
                 margin-left: 0;
             }
+
+            .join-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .join-actions {
+                flex-direction: column;
+            }
         }
 
         .ui.card, .ui.cards > .card {
@@ -736,7 +794,15 @@
     </style>
 </head>
 <body>
-<div class="ui secondary  menu" id="sessionTopbar" style="display:none;">>
+<div class="ui secondary  menu" id="sessionTopbar" style="display:none;">
+
+    <div class="item" id="roomWrapper" style="display:none;">
+        <div class="ui label session-badge">
+            <i class="users icon"></i>
+            <span class="session-badge-text">Комната:</span>
+            <span class="session-badge-value" id="currentRoomName">---</span>
+        </div>
+    </div>
 
         <div class="ui label session-badge item" id="adminWrapper">
             <i class="chess king icon"></i>
@@ -745,6 +811,12 @@
         </div>
 
     <div class="right menu">
+        <div class="item">
+            <button class="ui button" id="copyRoomLinkTopBtn" style="display:none;">
+                <i class="copy icon"></i>
+                Ссылка
+            </button>
+        </div>
         <div class="item">
             <button class="ui  right labeled icon button" id="changeNameBtn" style="display:none;">
                 <span class="session-badge-value" id="sessionUserName"></span>
@@ -791,10 +863,32 @@
                 <h2 class="ui  header">Скрум Покер Онлине</h2>
             </div>
 
-            <div class="ui action input" id="joinPanel">
-                <input type="text" id="playerName" placeholder="Ваше имя">
-                <button class="ui button onlyAuth" id="iAmAdmin">Я админ</button>
-                <button class="ui primary button onlyAuth" id="joinBtn">Коннект</button>
+            <div class="ui segment" id="joinPanel">
+                <div class="join-grid">
+                    <div class="join-field" id="roomBuilderField">
+                        <label for="roomSuffix">Постфикс комнаты</label>
+                        <input type="text" id="roomSuffix" placeholder="backend-sprint-42">
+                        <div class="join-meta" id="roomHelpText">Введите понятный постфикс. Сервис добавит короткий уникальный суффикс.</div>
+                    </div>
+                    <div class="join-field hidden" id="roomLinkField">
+                        <label for="roomLinkInput">Ссылка комнаты</label>
+                        <div class="ui action input join-room-link">
+                            <input type="text" id="roomLinkInput" readonly>
+                            <button class="ui button" id="copyRoomLinkBtn" type="button">Копировать</button>
+                        </div>
+                        <div class="join-meta" id="roomLinkHelpText">Скопируйте ссылку и отправьте её команде.</div>
+                    </div>
+                    <div class="join-field">
+                        <label for="playerName">Ваше имя</label>
+                        <input type="text" id="playerName" placeholder="Ваше имя">
+                        <div class="join-meta" id="roomStatusText">Сначала создайте комнату или откройте готовую ссылку.</div>
+                    </div>
+                    <div class="join-actions">
+                        <button class="ui primary button onlyAuth" id="createRoomBtn">Создать комнату</button>
+                        <button class="ui button onlyAuth" id="iAmAdmin" style="display:none;">Я админ</button>
+                        <button class="ui primary button onlyAuth" id="joinBtn" style="display:none;">Войти</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -895,32 +989,23 @@
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.2/dist/semantic.min.js"></script>
 <script>
-    const socket = window.location.protocol === 'file:'
-        ? io("pocker.webpaul.ru")
-        : io("http://localhost:3000");
+    const isFileMode = window.location.protocol === 'file:';
+    const apiBaseUrl = isFileMode ? 'https://pocker.webpaul.ru' : '';
+    const socket = isFileMode ? io(apiBaseUrl) : io();
 
-    const roomId = 'default-room';
+    const ROOM_ID_PATTERN = /^(?<suffix>[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*)-(?<token>[a-f0-9]{6})$/u;
+
+    let roomId = '';
+    let currentRoomMeta = null;
     let mySocketId = null;
     let name = '';
     let revealed = false;
     let isAdmin = false;
     const VOTE_TTL_MS = 60 * 60 * 1000; // 1 час
+
     socket.on('connect', () => {
         mySocketId = socket.id;
     });
-    const fakePlayers = [
-        {id: '1', name: 'Алексей', vote: 5, isAdmin: true},
-        {id: '2', name: 'Мария', vote: 7, isAdmin: false},
-        {id: '3', name: 'Игорь ', vote: 5, isAdmin: false},
-        {id: '4', name: 'Ольга ', vote: 8, isAdmin: false},
-        {id: '5', name: 'Дмитрий ', vote: 5, isAdmin: false},
-        {id: '6', name: 'Анна ', vote: 10, isAdmin: false},
-        {id: '7', name: 'Никита ', vote: 25, isAdmin: false},
-        {id: '8', name: 'Екатерина ', vote: 1, isAdmin: false},
-        {id: '9', name: 'Павел ', vote: 3, isAdmin: false},
-        {id: '10', name: 'Светлана ', vote: 2, isAdmin: false},
-        {id: '11', name: 'Андрей ', vote: 5, isAdmin: false}
-    ];
 
     $('#iAmAdmin').on('click', function () {
         const next = $('#isAdmin').val() === '0' ? '1' : '0';
@@ -963,6 +1048,138 @@
         } catch (e) {
             localStorage.removeItem(key);
             return null;
+        }
+    }
+
+    function getAdminStorageKey(targetRoomId = roomId) {
+        return `pokerAdmin:${normalizeRoomId(targetRoomId) || 'default'}`;
+    }
+
+    function normalizeRoomId(value) {
+        return String(value || '')
+            .normalize('NFKC')
+            .trim()
+            .toLowerCase();
+    }
+
+    function normalizeRoomSuffix(value) {
+        return String(value || '')
+            .normalize('NFKC')
+            .trim()
+            .toLowerCase()
+            .replace(/[^\p{L}\p{N}]+/gu, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 48)
+            .replace(/^-+|-+$/g, '');
+    }
+
+    function buildRoomMeta(targetRoomId) {
+        const normalizedRoomId = normalizeRoomId(targetRoomId);
+        const match = normalizedRoomId.match(ROOM_ID_PATTERN);
+        if (!match || !match.groups) {
+            return null;
+        }
+
+        return {
+            id: normalizedRoomId,
+            suffix: match.groups.suffix,
+            label: match.groups.suffix
+        };
+    }
+
+    function getRoomIdFromLocation() {
+        const params = new URLSearchParams(window.location.search);
+        return normalizeRoomId(params.get('room'));
+    }
+
+    function buildRoomLink(targetRoomId = roomId) {
+        const normalizedRoomId = normalizeRoomId(targetRoomId);
+        if (!normalizedRoomId) {
+            return '';
+        }
+
+        const url = new URL(window.location.href);
+        url.searchParams.set('room', normalizedRoomId);
+        return url.toString();
+    }
+
+    function updateRoomUrl(nextRoomId) {
+        const url = new URL(window.location.href);
+        const normalizedRoomId = normalizeRoomId(nextRoomId);
+
+        if (normalizedRoomId) {
+            url.searchParams.set('room', normalizedRoomId);
+        } else {
+            url.searchParams.delete('room');
+        }
+
+        const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+        window.history.replaceState({}, '', nextUrl);
+    }
+
+    function renderRoomSelectionMeta() {
+        const hasRoom = Boolean(roomId);
+        const shareLink = buildRoomLink(roomId);
+
+        $('#roomBuilderField').toggle(!hasRoom);
+        $('#roomLinkField').toggleClass('hidden', !hasRoom).toggle(hasRoom);
+        $('#createRoomBtn').toggle(!hasRoom);
+        $('#joinBtn').toggle(hasRoom);
+        $('#iAmAdmin').toggle(hasRoom);
+        $('#roomLinkInput').val(shareLink);
+        $('#currentRoomName')
+            .text(hasRoom ? roomId : '---')
+            .attr('title', hasRoom ? shareLink : '');
+        $('#copyRoomLinkBtn').prop('disabled', !hasRoom);
+        $('#copyRoomLinkTopBtn').toggle(Boolean(name) && hasRoom);
+
+        if (!hasRoom) {
+            $('#roomHelpText').text('Введите понятный постфикс. Сервис добавит короткий уникальный суффикс.');
+            $('#roomStatusText').text('Сначала создайте комнату или откройте готовую ссылку.');
+            return;
+        }
+
+        $('#roomLinkHelpText').text('Скопируйте ссылку и отправьте её команде.');
+        $('#roomStatusText').text('Комната готова. Можно входить самому и приглашать участников по ссылке.');
+    }
+
+    function setActiveRoom(nextRoomId, roomMeta = null) {
+        const normalizedRoomId = normalizeRoomId(nextRoomId);
+        roomId = normalizedRoomId;
+        currentRoomMeta = roomMeta || buildRoomMeta(normalizedRoomId);
+        renderRoomSelectionMeta();
+    }
+
+    async function copyRoomLink() {
+        const shareLink = buildRoomLink();
+        if (!shareLink) {
+            return;
+        }
+
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(shareLink);
+            } else {
+                const tempInput = document.createElement('textarea');
+                tempInput.value = shareLink;
+                tempInput.setAttribute('readonly', '');
+                tempInput.style.position = 'absolute';
+                tempInput.style.left = '-9999px';
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+            }
+
+            $.toast({
+                class: 'success',
+                message: 'Ссылка комнаты скопирована'
+            });
+        } catch (error) {
+            $.toast({
+                class: 'error',
+                message: 'Не удалось скопировать ссылку'
+            });
         }
     }
 
@@ -1132,25 +1349,56 @@
 
     function emitWithAck(eventName, payload, timeoutMs = 4000) {
         return new Promise(resolve => {
-            if (!socket.connected) {
-                resolve({ ok: false, error: 'SOCKET_DISCONNECTED' });
+            let settled = false;
+            let timer = null;
+            let connectHandler = null;
+
+            const finish = result => {
+                if (settled) return;
+                settled = true;
+                if (timer) {
+                    clearTimeout(timer);
+                }
+                if (connectHandler) {
+                    socket.off('connect', connectHandler);
+                }
+                resolve(result);
+            };
+
+            const emitRequest = () => {
+                socket.emit(eventName, payload, result => {
+                    finish(result || { ok: false, error: 'UNKNOWN_ERROR' });
+                });
+            };
+
+            timer = setTimeout(() => {
+                finish({ ok: false, error: socket.connected ? 'ACK_TIMEOUT' : 'SOCKET_DISCONNECTED' });
+            }, timeoutMs);
+
+            if (socket.connected) {
+                emitRequest();
                 return;
             }
 
-            let settled = false;
-            const timer = setTimeout(() => {
-                if (settled) return;
-                settled = true;
-                resolve({ ok: false, error: 'ACK_TIMEOUT' });
-            }, timeoutMs);
-
-            socket.emit(eventName, payload, result => {
-                if (settled) return;
-                settled = true;
-                clearTimeout(timer);
-                resolve(result || { ok: false, error: 'UNKNOWN_ERROR' });
-            });
+            connectHandler = emitRequest;
+            socket.once('connect', connectHandler);
         });
+    }
+
+    function mapJoinError(errorCode) {
+        if (errorCode === 'ACK_TIMEOUT') return 'Сервер не ответил на запрос входа';
+        if (errorCode === 'SOCKET_DISCONNECTED') return 'Нет подключения к серверу';
+        if (errorCode === 'ROOM_NOT_FOUND') return 'Комната не найдена. Возможно, ссылка устарела или повреждена';
+        if (errorCode === 'ADMIN_ALREADY_EXISTS') return 'В этой комнате уже есть администратор';
+        if (errorCode === 'NAME_REQUIRED') return 'Введите имя перед входом';
+        return `Ошибка входа: ${errorCode || 'UNKNOWN_ERROR'}`;
+    }
+
+    function mapCreateRoomError(errorCode) {
+        if (errorCode === 'ACK_TIMEOUT') return 'Сервер не ответил на запрос создания комнаты';
+        if (errorCode === 'SOCKET_DISCONNECTED') return 'Нет подключения к серверу';
+        if (errorCode === 'ROOM_SUFFIX_REQUIRED') return 'Введите постфикс для новой комнаты';
+        return `Ошибка создания комнаты: ${errorCode || 'UNKNOWN_ERROR'}`;
     }
 
     async function emitTaskSelection(direction) {
@@ -1176,13 +1424,66 @@
         observeChanges: true
     });
 
-    function joinSession(newName, newIsAdmin) {
+    async function createRoom() {
+        const roomSuffix = normalizeRoomSuffix($('#roomSuffix').val());
+        if (!roomSuffix) {
+            $.toast({
+                class: 'warning',
+                message: 'Введите постфикс для новой комнаты'
+            });
+            return null;
+        }
+
+        $('#createRoomBtn').addClass('disabled loading');
+        const result = await emitWithAck('create_room', { roomSuffix });
+        $('#createRoomBtn').removeClass('disabled loading');
+
+        if (!result || !result.ok || !result.room || !result.room.id) {
+            $.toast({
+                class: 'error',
+                message: mapCreateRoomError(result && result.error)
+            });
+            return null;
+        }
+
+        setActiveRoom(result.room.id, result.room);
+        updateRoomUrl(result.room.id);
+        $('#roomSuffix').val(result.room.suffix || roomSuffix);
+        return result.room;
+    }
+
+    async function joinSession(newName, newIsAdmin) {
+        if (!roomId) {
+            $.toast({
+                class: 'error',
+                message: 'Сначала создайте комнату или откройте ссылку'
+            });
+            return false;
+        }
+
+        $('#joinBtn').addClass('disabled loading');
+        const result = await emitWithAck('join', { roomId, name: newName, isAdmin: newIsAdmin });
         $('#joinBtn').removeClass('disabled loading');
+
+        if (!result || !result.ok) {
+            $.toast({
+                class: 'error',
+                message: mapJoinError(result && result.error)
+            });
+            return false;
+        }
+
         name = newName;
         isAdmin = newIsAdmin;
         localStorage.setItem('pokerName', name);
-        localStorage.setItem('pokerAdmin', isAdmin);
-        socket.emit('join', {roomId, name, isAdmin}, applyRoomState);
+        localStorage.setItem(getAdminStorageKey(roomId), String(isAdmin));
+
+        if (result.room) {
+            setActiveRoom(result.room.id, result.room);
+        }
+
+        applyRoomState(result);
+
         // Re-apply saved vote after join (for page reloads)
         const savedVote = getVoteWithTTL(getVoteKey());
         if (savedVote) {
@@ -1190,12 +1491,17 @@
         }
         $('#playerName').val(name);
         $('#playerName').addClass('disabled');
+        $('#roomSuffix').prop('disabled', true);
+        $('#roomLinkInput').prop('disabled', true);
         $('#isAdmin').prop('disabled', true);
         $('#joinBtn').prop('disabled', true);
+        $('#createRoomBtn').prop('disabled', true);
         $('.onlyAuth').hide();
         $('#joinPanel').hide();
         $('#sessionUserName').text(name);
         $('#sessionTopbar').css('display', 'flex');
+        $('#roomWrapper').show();
+        $('#copyRoomLinkTopBtn').show();
         $('#changeNameBtn, #averageVote').show();
         setAverageVoteDisplay('0');
         $('#adminWrapper').css('visibility', 'visible');
@@ -1206,43 +1512,80 @@
             $('#adminNoteForm').hide();
         }
         renderTaskControls();
+        return true;
     }
 
-    $(document).ready(() => {
-        const savedName = localStorage.getItem('pokerName');
-        const savedAdmin = localStorage.getItem('pokerAdmin') === 'true';
-        renderTaskWheel();
-        if (savedName) joinSession(savedName, savedAdmin);
-    });
+    $(document).ready(async () => {
+        const savedName = localStorage.getItem('pokerName') || '';
+        const roomFromUrl = getRoomIdFromLocation();
+        const savedAdmin = roomFromUrl
+            ? localStorage.getItem(getAdminStorageKey(roomFromUrl)) === 'true'
+            : false;
 
-    $('#joinBtn').click(() => {
-        $('#joinBtn').addClass('disabled loading');
-        const newName = $('#playerName').val().trim();
-        const newIsAdmin = $('#isAdmin').val() === '1';
-        if (newName) {
-            if (newIsAdmin) {
-                socket.emit('request_admin_status', roomId, canJoin => {
-                    if (!canJoin) {
-                        $('#joinBtn').removeClass('disabled loading');
-                        $.toast({
-                            position: 'top center',
-                            class: 'error',
-                            message: `Админ уже существует. Вы не можете стать вторым.`
-                        });
-                        return;
-                    }
-                    joinSession(newName, newIsAdmin);
-                });
+        $('#playerName').val(savedName);
+        $('#isAdmin').val(savedAdmin ? '1' : '0');
+        $('#iAmAdmin').toggleClass('green', savedAdmin);
+        renderTaskWheel();
+
+        renderRoomSelectionMeta();
+        $('#copyRoomLinkBtn, #copyRoomLinkTopBtn').click(copyRoomLink);
+
+        if (roomFromUrl) {
+            const roomMeta = buildRoomMeta(roomFromUrl);
+            if (roomMeta) {
+                setActiveRoom(roomFromUrl, roomMeta);
             } else {
-                joinSession(newName, newIsAdmin);
+                $.toast({
+                    class: 'warning',
+                    message: 'Ссылка комнаты выглядит некорректной'
+                });
             }
         }
+
+        if (savedName && roomId) {
+            await joinSession(savedName, savedAdmin);
+        }
+    });
+
+    $('#createRoomBtn').click(async () => {
+        const newName = $('#playerName').val().trim();
+        if (!newName) {
+            $.toast({
+                class: 'warning',
+                message: 'Введите имя перед созданием комнаты'
+            });
+            return;
+        }
+
+        const room = await createRoom();
+        if (!room) {
+            return;
+        }
+
+        $('#isAdmin').val('1');
+        $('#iAmAdmin').addClass('green');
+        await joinSession(newName, true);
+    });
+
+    $('#joinBtn').click(async () => {
+        const newName = $('#playerName').val().trim();
+        const newIsAdmin = $('#isAdmin').val() === '1';
+        if (!newName) {
+            $.toast({
+                class: 'warning',
+                message: 'Введите имя перед входом'
+            });
+            return;
+        }
+
+        await joinSession(newName, newIsAdmin);
     });
 
     $('#changeNameBtn').click(() => {
         // Clean up stored vote for previous name
         try { localStorage.removeItem(getVoteKey()); } catch (e) {}
         localStorage.removeItem('pokerName');
+        localStorage.removeItem(getAdminStorageKey(roomId));
         localStorage.removeItem('pokerAdmin');
         location.reload();
     });
@@ -1377,6 +1720,10 @@
     }
 
     function applyRoomState(roomState = {}) {
+        if (roomState.room) {
+            setActiveRoom(roomState.room.id, roomState.room);
+        }
+
         if (typeof roomState.revealed === 'boolean') {
             revealed = roomState.revealed;
         }

@@ -37,6 +37,28 @@ Run the unit tests:
 npm test
 ```
 
+## Dynamic Rooms
+
+Rooms are created on demand from the UI.
+
+Flow:
+
+1. The creator enters a readable suffix such as `backend-sprint-42`
+2. The server generates a unique room ID like `backend-sprint-42-a1b2c3`
+3. The browser updates the URL to `/?room=backend-sprint-42-a1b2c3`
+4. The creator copies that URL and sends it to the rest of the team
+
+There is no preconfigured room list and no room password layer.
+
+Isolation is enforced on the server:
+
+- all votes, notes, task lists, and estimation mode state are stored per room
+- admin-only actions are checked on the server, not only in the UI
+- users enter a room only through its unique link
+
+If the room becomes empty and the server restarts, the same valid link can still be used again.
+The room state will start empty, but the link format remains valid.
+
 ## Docker
 
 A `Dockerfile` is provided to build a container image.
