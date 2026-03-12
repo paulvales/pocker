@@ -166,13 +166,12 @@
         }
 
         #noteDisplay {
-            background: #fff;
             box-shadow: none;
             border: 1px solid #e0e1e2;
         }
 
         :root {
-            --app-content-width: 860px;
+            --app-content-width: 1080px;
             --task-sidebar-width: 210px;
             --task-sidebar-gap: 1rem;
         }
@@ -217,6 +216,10 @@
 
         .page-hero {
             order: 0;
+            width: 100%;
+            max-width: 1120px;
+            margin-left: auto !important;
+            margin-right: auto !important;
             margin-bottom: 1rem !important;
         }
 
@@ -278,51 +281,85 @@
         }
 
         #joinPanel {
-            width: min(100%, 980px);
+            width: min(100%, 1120px);
             margin: 1rem auto 0;
-            padding: 1rem 1.1rem !important;
+            padding: 1.35rem 1.5rem !important;
             border: 1px solid #e0e1e2 !important;
             border-radius: .75rem !important;
             background: #fff !important;
             box-shadow: none !important;
         }
 
-        .join-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) auto;
-            gap: .85rem;
-            align-items: end;
+        #joinPanel .ui.form {
+            text-align: left;
         }
 
-        .join-field {
-            text-align: left;
+        .join-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.6fr) minmax(280px, .9fr);
+            gap: 1rem 1.2rem;
+            align-items: start;
+        }
+
+        .join-field.field {
+            margin: 0 !important;
             min-width: 0;
+        }
+
+        #roomBuilderField,
+        #roomLinkField {
+            grid-column: 1;
+        }
+
+        #playerNameField {
+            grid-column: 2;
         }
 
         .join-field label {
             display: block;
-            margin-bottom: .35rem;
-            font-size: .86rem;
+            margin-bottom: .45rem !important;
+            font-size: .9rem;
             font-weight: 700;
             color: rgba(0, 0, 0, 0.7);
         }
 
+        .join-field .ui.input,
+        .join-field .ui.action.input {
+            width: 100%;
+        }
+
+        .join-field .ui.input > input,
+        .join-field .ui.action.input > input {
+            min-height: 48px;
+            font-size: 1rem;
+        }
+
+        #roomLinkInput {
+            font-weight: 600;
+            color: rgba(0, 0, 0, 0.85);
+        }
+
         .join-meta {
-            min-height: 1.2rem;
-            margin-top: .35rem;
+            min-height: 1.4rem;
+            margin-top: .45rem;
             font-size: .82rem;
+            line-height: 1.45;
             color: rgba(0, 0, 0, 0.55);
         }
 
         .join-actions {
+            grid-column: 1 / -1;
             display: flex;
-            gap: .55rem;
+            gap: .75rem;
             align-items: stretch;
+            justify-content: flex-end;
+            padding-top: .15rem;
         }
 
         .join-actions .button {
             margin: 0 !important;
             white-space: nowrap;
+            min-width: 10rem;
         }
 
         .join-field.hidden {
@@ -330,12 +367,16 @@
         }
 
         .join-room-link {
-            display: flex;
-            gap: .5rem;
+            width: 100%;
         }
 
         .join-room-link input[readonly] {
-            flex: 1 1 auto;
+            font-family: "Consolas", "SFMono-Regular", "Liberation Mono", monospace;
+        }
+
+        .join-room-link > .button {
+            min-width: 9.5rem;
+            white-space: nowrap;
         }
 
         .top-controls {
@@ -747,12 +788,28 @@
                 margin-left: 0;
             }
 
+        }
+
+        @media (max-width: 960px) {
             .join-grid {
                 grid-template-columns: 1fr;
             }
 
+            #roomBuilderField,
+            #roomLinkField,
+            #playerNameField {
+                grid-column: auto;
+            }
+
             .join-actions {
                 flex-direction: column;
+                justify-content: stretch;
+            }
+
+            .join-actions .button,
+            .join-room-link > .button {
+                width: 100%;
+                min-width: 0;
             }
         }
 
@@ -864,31 +921,37 @@
             </div>
 
             <div class="ui segment" id="joinPanel">
-                <div class="join-grid">
-                    <div class="join-field ui input" id="roomBuilderField">
-                        <label for="roomSuffix">Название комнаты</label>
-                        <input type="text" id="roomSuffix" placeholder="backend-sprint-42">
-                        <div class="join-meta" id="roomHelpText">Введите уникальное название комнаты</div>
-                    </div>
-                    <div class="join-field hidden" id="roomLinkField">
-                        <label for="roomLinkInput">Ссылка комнаты</label>
-                        <div class="ui action input join-room-link">
-                            <input type="text" id="roomLinkInput" readonly>
-                            <button class="ui button" id="copyRoomLinkBtn" type="button">Копировать</button>
+                <form class="ui large form" id="joinForm">
+                    <div class="join-grid">
+                        <div class="join-field field" id="roomBuilderField">
+                            <label for="roomSuffix">Название комнаты</label>
+                            <div class="ui fluid input">
+                                <input type="text" id="roomSuffix" placeholder="backend-sprint-42">
+                            </div>
+                            <div class="join-meta" id="roomHelpText">Введите уникальное название комнаты</div>
                         </div>
-                        <div class="join-meta" id="roomLinkHelpText">Скопируйте ссылку и отправьте её команде.</div>
+                        <div class="join-field field hidden" id="roomLinkField">
+                            <label for="roomLinkInput">Ссылка комнаты</label>
+                            <div class="ui fluid action input join-room-link">
+                                <input type="text" id="roomLinkInput" readonly>
+                                <button class="ui button" id="copyRoomLinkBtn" type="button">Копировать</button>
+                            </div>
+                            <div class="join-meta" id="roomLinkHelpText">Скопируйте ссылку и отправьте её команде.</div>
+                        </div>
+                        <div class="join-field field" id="playerNameField">
+                            <label for="playerName">Ваше имя</label>
+                            <div class="ui fluid input">
+                                <input type="text" id="playerName" placeholder="Ваше имя">
+                            </div>
+                            <div class="join-meta" id="roomStatusText">Сначала создайте комнату или откройте готовую ссылку.</div>
+                        </div>
+                        <div class="join-actions">
+                            <button class="ui primary large button onlyAuth" id="createRoomBtn" type="button">Создать комнату</button>
+                            <button class="ui large basic button onlyAuth" id="iAmAdmin" style="display:none;" type="button">Я админ</button>
+                            <button class="ui primary large button onlyAuth" id="joinBtn" style="display:none;" type="button">Войти</button>
+                        </div>
                     </div>
-                    <div class="join-field  ui input">
-                        <label for="playerName">Ваше имя</label>
-                        <input type="text" id="playerName" placeholder="Ваше имя">
-                        <div class="join-meta" id="roomStatusText">Сначала создайте комнату или откройте готовую ссылку.</div>
-                    </div>
-                    <div class="join-actions">
-                        <button class="ui primary button onlyAuth" id="createRoomBtn">Создать комнату</button>
-                        <button class="ui button onlyAuth" id="iAmAdmin" style="display:none;">Я админ</button>
-                        <button class="ui primary button onlyAuth" id="joinBtn" style="display:none;">Войти</button>
-                    </div>
-                </div>
+                </form>
             </div>
         </div>
 
