@@ -2,6 +2,12 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+ARG APP_VERSION=dev
+ARG APP_BUILD=
+
+LABEL org.opencontainers.image.version=$APP_VERSION \
+      org.opencontainers.image.revision=$APP_BUILD
+
 ENV NODE_ENV=production \
     PORT=3000
 

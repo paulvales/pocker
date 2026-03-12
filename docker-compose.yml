@@ -1,9 +1,6 @@
 services:
   pocker:
-    image: ${APP_IMAGE:-pocker}:${APP_TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${APP_IMAGE:-127.0.0.1:5000/pocker}:${APP_TAG:-latest}
     container_name: ${CONTAINER_NAME:-pocker}
     restart: unless-stopped
     expose:
