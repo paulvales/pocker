@@ -79,6 +79,23 @@ The compose setup includes:
 - container health checks via `GET /health`
 - optional YouTrack variables from `.env`
 - app version exposure through the UI footer and `GET /version`
+- Traefik labels for `pocker.webpaul.ru`
+- external Docker network `web`
+
+This compose file is oriented to the production server behind Traefik, so it uses `expose: 3000` instead of a direct host `ports` mapping.
+
+If the external Traefik network does not exist yet:
+
+```sh
+docker network create web
+```
+
+If the root domains should not be routed to this app, remove these labels from `docker-compose.yml`:
+
+- `traefik.http.routers.webpaul-root.rule`
+- `traefik.http.routers.webpaul-root.entrypoints`
+- `traefik.http.routers.webpaul-root.tls.certresolver`
+- `traefik.http.routers.webpaul-root.service`
 
 ## Versioning
 
@@ -92,3 +109,10 @@ docker compose up -d --build
 ```
 
 If your deployment tool supports Compose projects, point it to `docker-compose.yml` and use rebuild/redeploy. That is the simplest path to a one-click update flow.
+
+For your server flow this becomes:
+
+```sh
+git pull
+docker compose up -d --build
+```

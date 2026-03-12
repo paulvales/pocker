@@ -6,8 +6,8 @@ services:
       dockerfile: Dockerfile
     container_name: ${CONTAINER_NAME:-pocker}
     restart: unless-stopped
-    ports:
-      - "${HOST_PORT:-3000}:3000"
+    expose:
+      - "3000"
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -16,3 +16,21 @@ services:
       YOUTRACK_BASE_URL: ${YOUTRACK_BASE_URL:-}
       YOUTRACK_TOKEN: ${YOUTRACK_TOKEN:-}
       YOUTRACK_STORY_POINTS_FIELD: ${YOUTRACK_STORY_POINTS_FIELD:-Story points}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-web}
+      - traefik.http.routers.pocker.rule=Host(`${APP_HOST:-pocker.webpaul.ru}`)
+      - traefik.http.routers.pocker.entrypoints=${TRAEFIK_ENTRYPOINTS:-websecure}
+      - traefik.http.routers.pocker.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-le}
+      - traefik.http.services.pocker.loadbalancer.server.port=3000
+      - traefik.http.routers.webpaul-root.rule=Host(`${ROOT_HOST:-webpaul.ru}`) || Host(`${WWW_ROOT_HOST:-www.webpaul.ru}`)
+      - traefik.http.routers.webpaul-root.entrypoints=${TRAEFIK_ENTRYPOINTS:-websecure}
+      - traefik.http.routers.webpaul-root.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-le}
+      - traefik.http.routers.webpaul-root.service=pocker
+    networks:
+      - web
+
+networks:
+  web:
+    external: true
+    name: ${TRAEFIK_NETWORK:-web}
