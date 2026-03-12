@@ -151,6 +151,20 @@ docker compose up -d
 
 Then DockMon can detect the new digest for `latest` and update the running app with its normal update button.
 
+If you want a single server-side command without opening DockMon, use:
+
+```sh
+bash ./scripts/server-deploy.sh
+```
+
+That command will:
+
+- pull the latest git changes with `git pull --ff-only`
+- ensure the local registry is running
+- build and push the new image into the local registry
+- pull the updated image into the app stack
+- recreate the `pocker` container
+
 ## Versioning
 
 The app version is taken from `package.json` and shown in the footer.
@@ -168,4 +182,10 @@ Then on the server:
 ```sh
 git pull
 ./scripts/release-local-registry.sh
+```
+
+Or, for the full one-command deployment on the server:
+
+```sh
+bash ./scripts/server-deploy.sh
 ```
