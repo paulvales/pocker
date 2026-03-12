@@ -1,8 +1,35 @@
 const { io, server } = require('..');
+const http = require('http');
 const ioClient = require('socket.io-client');
+const packageJson = require('../package.json');
 
 describe('socket server', () => {
   let port;
+
+  function request(pathname) {
+    return new Promise((resolve, reject) => {
+      const req = http.get({
+        host: '127.0.0.1',
+        port,
+        path: pathname,
+      }, res => {
+        let body = '';
+        res.setEncoding('utf8');
+        res.on('data', chunk => {
+          body += chunk;
+        });
+        res.on('end', () => {
+          resolve({
+            statusCode: res.statusCode,
+            headers: res.headers,
+            body,
+          });
+        });
+      });
+
+      req.on('error', reject);
+    });
+  }
 
   beforeAll(done => {
     server.listen(() => {
@@ -40,6 +67,30 @@ describe('socket server', () => {
         client1.emit('note_update', { roomId, note });
       }, 50);
     });
+  });
+
+  test('exposes health and version info over http', async () => {
+    const health = await request('/health');
+    const version = await request('/version');
+    const home = await request('/');
+
+    expect(health.statusCode).toBe(200);
+    expect(JSON.parse(health.body)).toEqual({
+      status: 'ok',
+      version: packageJson.version,
+      build: null,
+    });
+
+    expect(version.statusCode).toBe(200);
+    expect(JSON.parse(version.body)).toEqual({
+      version: packageJson.version,
+      build: null,
+      label: packageJson.version,
+    });
+
+    expect(home.statusCode).toBe(200);
+    expect(home.body).toContain(`v ${packageJson.version}`);
+    expect(home.body).not.toContain('__APP_VERSION__');
   });
 
   test('returns saved note in join callback for reconnecting clients', done => {

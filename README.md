@@ -24,6 +24,13 @@ npm start
 
 The server listens on `process.env.PORT` or `3000` by default.
 
+Health and version endpoints:
+
+```sh
+curl http://localhost:3000/health
+curl http://localhost:3000/version
+```
+
 Run the unit tests:
 
 ```sh
@@ -45,3 +52,43 @@ Run the container:
 ```sh
 docker run -p 3000:3000 pocker
 ```
+
+## Docker Compose
+
+Create your env file:
+
+```sh
+cp .env.example .env
+```
+
+Start or update the stack:
+
+```sh
+docker compose up -d --build
+```
+
+Stop the stack:
+
+```sh
+docker compose down
+```
+
+The compose setup includes:
+
+- `restart: unless-stopped`
+- container health checks via `GET /health`
+- optional YouTrack variables from `.env`
+- app version exposure through the UI footer and `GET /version`
+
+## Versioning
+
+The app version is taken from `package.json` and shown in the footer.
+
+For a new release:
+
+```sh
+npm version patch
+docker compose up -d --build
+```
+
+If your deployment tool supports Compose projects, point it to `docker-compose.yml` and use rebuild/redeploy. That is the simplest path to a one-click update flow.

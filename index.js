@@ -2,9 +2,41 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
+const packageJson = require('./package.json');
+
+const APP_VERSION = process.env.APP_VERSION || packageJson.version || 'dev';
+const APP_BUILD = process.env.APP_BUILD || '';
+const APP_VERSION_LABEL = APP_BUILD ? `${APP_VERSION} (${APP_BUILD})` : APP_VERSION;
+
+function respondJson(res, statusCode, payload) {
+    res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify(payload));
+}
+
+function renderIndexHtml(template) {
+    return template.replace(/__APP_VERSION__/g, APP_VERSION_LABEL);
+}
 
 // HTTP-сервер с отдачей index.html
 const server = http.createServer((req, res) => {
+    if (req.url === '/health') {
+        respondJson(res, 200, {
+            status: 'ok',
+            version: APP_VERSION,
+            build: APP_BUILD || null,
+        });
+        return;
+    }
+
+    if (req.url === '/version') {
+        respondJson(res, 200, {
+            version: APP_VERSION,
+            build: APP_BUILD || null,
+            label: APP_VERSION_LABEL,
+        });
+        return;
+    }
+
     if (req.url === '/' || req.url === '/index.html') {
         const filePath = path.join(__dirname, 'index.html');
         fs.readFile(filePath, (err, data) => {
@@ -12,8 +44,8 @@ const server = http.createServer((req, res) => {
                 res.writeHead(500);
                 res.end('Error loading index.html');
             } else {
-                res.writeHead(200, { 'Content-Type': 'text/html' });
-                res.end(data);
+                res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                res.end(renderIndexHtml(data.toString('utf8')));
             }
         });
     } else {
