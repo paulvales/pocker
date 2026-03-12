@@ -9,7 +9,7 @@ echo "Pulling latest git changes"
 git pull --ff-only
 
 echo "Ensuring local registry is running"
-docker compose -f docker-compose.registry.yml up -d
+docker compose -p pocker-registry -f docker-compose.registry.yml up -d
 
 echo "Publishing app image to local registry"
 sh ./scripts/release-local-registry.sh

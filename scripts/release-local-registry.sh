@@ -12,7 +12,7 @@ read_env_value() {
   [ -f "$file" ] || return 1
 
   value=$(sed -n "s/^${key}=//p" "$file" | tail -n 1)
-  [ -n "$value" ] || return 1
+  value=$(printf '%s' "$value" | tr -d '\r')
 
   case "$value" in
     \"*\")
@@ -24,6 +24,8 @@ read_env_value() {
       value=${value%\'}
       ;;
   esac
+
+  [ -n "$value" ] || return 1
 
   printf '%s\n' "$value"
 }
