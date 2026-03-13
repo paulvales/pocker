@@ -77,6 +77,43 @@ Run the container:
 docker run -p 3000:3000 pocker
 ```
 
+If you rebuild often during local work, use a fixed container name so Docker does not keep creating random new containers:
+
+```sh
+docker build -t pocker-local:dev .
+docker rm -f pocker-local
+docker run --name pocker-local -p 3000:3000 pocker-local:dev
+```
+
+## Local Docker Dev
+
+For local Docker work, prefer the dedicated dev compose file instead of the production-oriented `docker-compose.yml`.
+
+Start or rebuild the local container:
+
+```sh
+docker compose -f docker-compose.dev.yml up -d --build
+```
+
+Stop it:
+
+```sh
+docker compose -f docker-compose.dev.yml down
+```
+
+This file:
+
+- builds from the local source tree
+- uses a fixed container name `pocker-local`
+- publishes `localhost:3000`
+- does not require the external `web` network or local registry
+
+For Windows, you can also use the helper script:
+
+```bat
+scripts\docker-local-rebuild.bat
+```
+
 ## Docker Compose
 
 Create your env file:

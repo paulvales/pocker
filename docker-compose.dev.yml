@@ -1,0 +1,12 @@
+services:
+  pocker:
+    build:
+      context: .
+    image: pocker-local:dev
+    container_name: pocker-local
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
