@@ -402,6 +402,18 @@
             flex-shrink: 0;
         }
 
+        #taskListActions {
+            display: none;
+            padding: 0 !important;
+            margin: 0 !important;
+            flex-shrink: 0;
+        }
+
+        #taskListActions .ui.button {
+            margin: 0 !important;
+            min-width: 13rem;
+        }
+
         #adminControls.ui.big.buttons {
             width: auto !important;
         }
@@ -734,17 +746,6 @@
             white-space: nowrap;
         }
 
-        #taskListActions {
-            display: none;
-            padding: 0 !important;
-            margin: 0 0 .75rem 0 !important;
-        }
-
-        #taskListActions .ui.button {
-            width: 100%;
-            margin: 0 !important;
-        }
-
         @media (max-width: 1320px) {
             .app-layout {
                 display: flex;
@@ -816,25 +817,30 @@
         .ui.card, .ui.cards > .card {
             border-radius: .5em;
         }
+
         #players {
             display: grid !important;
             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
             gap: 1em;
         }
+
         #players > .card {
             width: 100% !important;
             margin: 0 !important;
         }
-        #voteButtons{
+
+        #voteButtons {
             display: grid !important;
             grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
             gap: 10px;
             width: 100%;
         }
+
         #voteButtons .ui.button {
             margin: 0 !important;
         }
-        .httpsNotice{
+
+        .httpsNotice {
             position: fixed;
             bottom: .75rem;
             right: .9rem;
@@ -845,7 +851,8 @@
             border-radius: .28571429rem;
             box-shadow: 0 1px 2px rgba(34, 36, 38, 0.08);
         }
-        .httpsNotice a{
+
+        .httpsNotice a {
             border-bottom: 1px dotted;
         }
     </style>
@@ -854,16 +861,16 @@
 <div class="ui secondary  menu" id="sessionTopbar" style="display:none;">
 
     <div class="ui label session-badge item" id="roomWrapper" style="display:none;">
-            <i class="users icon"></i>
-            <span class="session-badge-text">Комната:</span>
-            <span class="session-badge-value" id="currentRoomName">---</span>
+        <i class="users icon"></i>
+        <span class="session-badge-text">Комната:</span>
+        <span class="session-badge-value" id="currentRoomName">---</span>
     </div>
 
-        <div class="ui label session-badge item" id="adminWrapper">
-            <i class="chess king icon"></i>
-            <span class="session-badge-text">Текущий админ:</span>
-            <span class="session-badge-value" id="currentAdmin">---</span>
-        </div>
+    <div class="ui label session-badge item" id="adminWrapper">
+        <i class="chess king icon"></i>
+        <span class="session-badge-text">Текущий админ:</span>
+        <span class="session-badge-value" id="currentAdmin">---</span>
+    </div>
 
     <div class="right menu">
         <div class="item">
@@ -882,11 +889,61 @@
 
     </div>
 </div>
+<div class="ui basic center aligned segment page-hero" style="padding-top: 0;">
+    <div class="ui basic center aligned " style="margin-bottom: 0;">
+        <h2 class="ui  header">Скрум Покер Онлине</h2>
+    </div>
 
+    <div class="ui segment" id="joinPanel">
+        <form class="ui large form" id="joinForm">
+            <div class="join-grid">
+                <div class="join-field field" id="roomBuilderField">
+                    <label for="roomSuffix">Название комнаты</label>
+                    <div class="ui fluid input">
+                        <input type="text" id="roomSuffix" placeholder="SCKZQA">
+                    </div>
+                    <div class="join-meta" id="roomHelpText">Введите уникальное название комнаты</div>
+                </div>
+                <div class="join-field field hidden" id="roomLinkField">
+                    <label for="roomLinkInput">Ссылка комнаты</label>
+                    <div class="ui fluid action input join-room-link">
+                        <input type="text" id="roomLinkInput" readonly>
+                        <button class="ui button" id="copyRoomLinkBtn" type="button">Копировать</button>
+                    </div>
+                    <div class="join-meta" id="roomLinkHelpText">Скопируйте ссылку и отправьте её
+                        команде.
+                    </div>
+                </div>
+                <div class="join-field field" id="playerNameField">
+                    <label for="playerName">Ваше имя</label>
+                    <div class="ui fluid input">
+                        <input type="text" id="playerName" placeholder="Ваше имя">
+                    </div>
+                    <div class="join-meta" id="roomStatusText">Сначала создайте комнату или откройте
+                        готовую ссылку.
+                    </div>
+                </div>
+                <div class="join-actions">
+                    <button class="ui primary large button onlyAuth" id="createRoomBtn" type="button">
+                        Создать комнату
+                    </button>
+                    <button class="ui large basic button onlyAuth" id="iAmAdmin" style="display:none;"
+                            type="button">Я админ
+                    </button>
+                    <button class="ui primary large button onlyAuth" id="joinBtn" style="display:none;"
+                            type="button">Войти
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 <div class="app-layout">
     <aside class="app-sidebar" id="taskSidebar" style="display:none;">
         <div class="app-sidebar-stack">
-            <div class="ui basic  segment" id="taskListActions" style="display:none; padding: 0; margin: 0 0 1rem 0;"></div>
+
+            <div class="ui basic  segment" id="taskListActions"
+                 style="display:none; padding: 0; margin: 0 0 1rem 0;"></div>
 
             <button class="ui  top attached  fluid button" id="loadTaskListBtn">Загрузить список</button>
             <div class="ui attached segment task-wheel-section" id="taskPickerSection" style="display:none;">
@@ -911,1061 +968,1057 @@
 
     <div class="app-content">
         <div class="ui centered grid container">
-    <div class="twelve wide column">
-        <div class="ui basic center aligned segment page-hero" style="padding-top: 0;">
-            <div class="ui basic center aligned " style="margin-bottom: 0;">
-                <h2 class="ui  header">Скрум Покер Онлине</h2>
-            </div>
+            <div class="twelve wide column">
 
-            <div class="ui segment" id="joinPanel">
-                <form class="ui large form" id="joinForm">
-                    <div class="join-grid">
-                        <div class="join-field field" id="roomBuilderField">
-                            <label for="roomSuffix">Название комнаты</label>
-                            <div class="ui fluid input">
-                                <input type="text" id="roomSuffix" placeholder="SCKZQA">
-                            </div>
-                            <div class="join-meta" id="roomHelpText">Введите уникальное название комнаты</div>
+
+                <input type="hidden" id="isAdmin" value="0">
+                <div class="ui basic " id="common" style="margin-bottom: 0">
+
+
+                    <div class="top-controls" id="topControls" style="display:none;">
+                        <div id="adminControls" class="ui  buttons" style="display:none;">
+                            <button class="ui green button" id="revealBtn">Показать</button>
+                            <button class="ui red button" id="resetBtn">Сбросить</button>
+                            <!--                <button class="ui teal button" id="setStoryPointsBtn">Проставить</button>-->
                         </div>
-                        <div class="join-field field hidden" id="roomLinkField">
-                            <label for="roomLinkInput">Ссылка комнаты</label>
-                            <div class="ui fluid action input join-room-link">
-                                <input type="text" id="roomLinkInput" readonly>
-                                <button class="ui button" id="copyRoomLinkBtn" type="button">Копировать</button>
+
+                        <div class="estimation-mode-panel" id="estimationModePanel" style="display:none;">
+                            <div class="estimation-mode-content">
+                                <div class="estimation-mode-label" id="estimationModeLabel">
+                                    Оцениваем: <span class="estimation-mode-value"
+                                                     id="estimationModeValue">Поинты</span>
+                                </div>
+                                <div class="ui  buttons estimation-mode-buttons" id="estimationModeButtons">
+                                    <button class="ui button" id="modePointsBtn">Поинты</button>
+                                    <button class="ui button" id="modeHoursBtn">Часы</button>
+                                </div>
                             </div>
-                            <div class="join-meta" id="roomLinkHelpText">Скопируйте ссылку и отправьте её команде.</div>
                         </div>
-                        <div class="join-field field" id="playerNameField">
-                            <label for="playerName">Ваше имя</label>
-                            <div class="ui fluid input">
-                                <input type="text" id="playerName" placeholder="Ваше имя">
+
+                        <div class="viewer-task-panel" id="viewerTaskPanel" style="display:none;">
+                            <div class="estimation-mode-content">
+                                <a class="viewer-task-link" id="viewerTaskLink" target="_blank"
+                                   rel="noopener noreferrer">
+                                    <span class="viewer-task-caption">Текущая задача:</span>
+                                    <span class="viewer-task-value" id="viewerTaskValue">-</span>
+                                </a>
                             </div>
-                            <div class="join-meta" id="roomStatusText">Сначала создайте комнату или откройте готовую ссылку.</div>
                         </div>
-                        <div class="join-actions">
-                            <button class="ui primary large button onlyAuth" id="createRoomBtn" type="button">Создать комнату</button>
-                            <button class="ui large basic button onlyAuth" id="iAmAdmin" style="display:none;" type="button">Я админ</button>
-                            <button class="ui primary large button onlyAuth" id="joinBtn" style="display:none;" type="button">Войти</button>
+
+                    </div>
+
+                    <div class="ui form" id="adminNoteForm" style="display:none;">
+                        <div class="field">
+                            <label>Сообщение участникам:</label>
+                            <input type="text" id="adminNote" placeholder="Введите сообщение...">
                         </div>
                     </div>
-                </form>
-            </div>
-        </div>
 
-        <input type="hidden" id="isAdmin" value="0">
-        <div class="ui basic " id="common"  style="margin-bottom: 0">
+                    <div class="ui message" id="noteDisplay" style="display:none;"></div>
+                    <div id="voteButtons" class="ui wrapping big spaced buttons"
+                         style="margin-bottom: 15px;margin-top: 15px; display: none;"></div>
 
 
-            <div class="top-controls" id="topControls" style="display:none;">
-                <div id="adminControls" class="ui  buttons" style="display:none;">
-                    <button class="ui green button" id="revealBtn">Показать</button>
-                    <button class="ui red button" id="resetBtn">Сбросить</button>
-<!--                <button class="ui teal button" id="setStoryPointsBtn">Проставить</button>-->
-            </div>
+                </div>
+                <div class="ui basic " style="margin-top: 0">
+                    <div id="players">
 
-            <div class="estimation-mode-panel" id="estimationModePanel" style="display:none;">
-                <div class="estimation-mode-content">
-                    <div class="estimation-mode-label" id="estimationModeLabel">
-                        Оцениваем: <span class="estimation-mode-value" id="estimationModeValue">Поинты</span>
-                    </div>
-                    <div class="ui  buttons estimation-mode-buttons" id="estimationModeButtons">
-                        <button class="ui button" id="modePointsBtn">Поинты</button>
-                        <button class="ui button" id="modeHoursBtn">Часы</button>
+
                     </div>
                 </div>
-            </div>
-
-            <div class="viewer-task-panel" id="viewerTaskPanel" style="display:none;">
-                <div class="estimation-mode-content">
-                    <a class="viewer-task-link" id="viewerTaskLink" target="_blank" rel="noopener noreferrer">
-                        <span class="viewer-task-caption">Текущая задача:</span>
-                        <span class="viewer-task-value" id="viewerTaskValue">-</span>
-                    </a>
-                </div>
-            </div>
-
-            </div>
-
-            <div class="ui form" id="adminNoteForm" style="display:none;">
-                <div class="field">
-                    <label>Сообщение участникам:</label>
-                    <input type="text" id="adminNote" placeholder="Введите сообщение...">
-                </div>
-            </div>
-
-            <div class="ui message" id="noteDisplay" style="display:none;"></div>
-            <div id="voteButtons" class="ui wrapping big spaced buttons"
-                 style="margin-bottom: 15px;margin-top: 15px; display: none;"></div>
-
-
-        </div>
-        <div class="ui basic " style="margin-top: 0">
-            <div id="players">
+                <!--        <div class="ui big divided list" id="players"></div>-->
 
 
             </div>
-        </div>
-        <!--        <div class="ui big divided list" id="players"></div>-->
 
-
-    </div>
-
-    <input type="hidden" id="averageVote1">
-</div>
-</div>
-<div class="ui fixed bottom sticky">
-    <div class=" ui   card  tiny statistic" id="averageVote" style="display:none;">
-        <div class="value" style="font-weight: bolder;">
-          0
-        </div>
-        <div class="label">
-            Средняя оценка
+            <input type="hidden" id="averageVote1">
         </div>
     </div>
+    <div class="ui fixed bottom sticky">
+        <div class=" ui   card  tiny statistic" id="averageVote" style="display:none;">
+            <div class="value" style="font-weight: bolder;">
+                0
+            </div>
+            <div class="label">
+                Средняя оценка
+            </div>
+        </div>
 
-</div>
+    </div>
 
     <div class="httpsNotice">
         <span>v __APP_VERSION__</span>
-        <a href="https://www.notion.so/303d22895e1580e88e47cb42885696b2" target="_blank">если проблемы с сертификатом</a>
+        <a href="https://www.notion.so/303d22895e1580e88e47cb42885696b2" target="_blank">если проблемы с
+            сертификатом</a>
     </div>
-<div class="ui small modal" id="taskListModal">
-    <i class="close icon"></i>
-    <div class="header">Загрузить список задач</div>
-    <div class="content">
-        <div class="ui form">
-            <div class="field">
-                <label>Вставьте ссылки на задачи</label>
-                <textarea id="taskListInput" rows="10" placeholder="https://tracker.example/ABC-123&#10;https://tracker.example/ABC-124&#10;или разделите их пробелами или запятыми"></textarea>
+    <div class="ui small modal" id="taskListModal">
+        <i class="close icon"></i>
+        <div class="header">Загрузить список задач</div>
+        <div class="content">
+            <div class="ui form">
+                <div class="field">
+                    <label>Вставьте ссылки на задачи</label>
+                    <textarea id="taskListInput" rows="10"
+                              placeholder="https://tracker.example/ABC-123&#10;https://tracker.example/ABC-124&#10;или разделите их пробелами или запятыми"></textarea>
+                </div>
             </div>
         </div>
+        <div class="actions">
+            <div class="ui cancel button">Отмена</div>
+            <div class="ui primary button" id="saveTaskListBtn">Сохранить</div>
+        </div>
     </div>
-    <div class="actions">
-        <div class="ui cancel button">Отмена</div>
-        <div class="ui primary button" id="saveTaskListBtn">Сохранить</div>
-    </div>
-</div>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.2/dist/semantic.min.js"></script>
-<script>
-    const isFileMode = window.location.protocol === 'file:';
-    const apiBaseUrl = isFileMode ? 'https://pocker.webpaul.ru' : '';
-    const socket = isFileMode ? io(apiBaseUrl) : io();
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.2/dist/semantic.min.js"></script>
+    <script>
+        const isFileMode = window.location.protocol === 'file:';
+        const apiBaseUrl = isFileMode ? 'https://pocker.webpaul.ru' : '';
+        const socket = isFileMode ? io(apiBaseUrl) : io();
 
-    const ROOM_ID_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N}_-]{0,63}$/u;
-    const RESERVED_ROOM_IDS = new Set(['health', 'version', 'index-html', 'robots-txt', 'socket-io']);
+        const ROOM_ID_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N}_-]{0,63}$/u;
+        const RESERVED_ROOM_IDS = new Set(['health', 'version', 'index-html', 'robots-txt', 'socket-io']);
 
-    let roomId = '';
-    let currentRoomMeta = null;
-    let mySocketId = null;
-    let name = '';
-    let revealed = false;
-    let isAdmin = false;
-    const VOTE_TTL_MS = 60 * 60 * 1000; // 1 час
+        let roomId = '';
+        let currentRoomMeta = null;
+        let mySocketId = null;
+        let name = '';
+        let revealed = false;
+        let isAdmin = false;
+        const VOTE_TTL_MS = 60 * 60 * 1000; // 1 час
 
-    socket.on('connect', () => {
-        mySocketId = socket.id;
-    });
+        socket.on('connect', () => {
+            mySocketId = socket.id;
+        });
 
-    $('#iAmAdmin').on('click', function () {
-        const next = $('#isAdmin').val() === '0' ? '1' : '0';
-        $('#isAdmin').val(next);
-        $(this).toggleClass('green');
-    });
+        $('#iAmAdmin').on('click', function () {
+            const next = $('#isAdmin').val() === '0' ? '1' : '0';
+            $('#isAdmin').val(next);
+            $(this).toggleClass('green');
+        });
 
-    const originalPoints = ["1", "2", "3", "5", "8", "13", "20", "40", "?"];
-    const allEstimateValues = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "20", "24", "32", "40", "?"];
+        const originalPoints = ["1", "2", "3", "5", "8", "13", "20", "40", "?"];
+        const allEstimateValues = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "20", "24", "32", "40", "?"];
 
-    function getInitials(name) {
-        return name.trim().split(' ').map(w => w.charAt(0).toUpperCase()).join('').slice(0, 2);
-    }
+        function getInitials(name) {
+            return name.trim().split(' ').map(w => w.charAt(0).toUpperCase()).join('').slice(0, 2);
+        }
 
-    // Key for storing current user's vote in this room
-    function getVoteKey() {
-        const nm = name || localStorage.getItem('pokerName') || '';
-        return `pokerVote:${roomId}:${nm}`;
-    }
+        // Key for storing current user's vote in this room
+        function getVoteKey() {
+            const nm = name || localStorage.getItem('pokerName') || '';
+            return `pokerVote:${roomId}:${nm}`;
+        }
 
-    function setVoteWithTTL(key, value) {
-        const payload = {
-            value,
-            expires: Date.now() + VOTE_TTL_MS
-        };
-        localStorage.setItem(key, JSON.stringify(payload));
-    }
+        function setVoteWithTTL(key, value) {
+            const payload = {
+                value,
+                expires: Date.now() + VOTE_TTL_MS
+            };
+            localStorage.setItem(key, JSON.stringify(payload));
+        }
 
-    function getVoteWithTTL(key) {
-        const raw = localStorage.getItem(key);
-        if (!raw) return null;
+        function getVoteWithTTL(key) {
+            const raw = localStorage.getItem(key);
+            if (!raw) return null;
 
-        try {
-            const payload = JSON.parse(raw);
-            if (!payload.expires || Date.now() > payload.expires) {
+            try {
+                const payload = JSON.parse(raw);
+                if (!payload.expires || Date.now() > payload.expires) {
+                    localStorage.removeItem(key);
+                    return null;
+                }
+                return payload.value;
+            } catch (e) {
                 localStorage.removeItem(key);
                 return null;
             }
-            return payload.value;
-        } catch (e) {
-            localStorage.removeItem(key);
-            return null;
-        }
-    }
-
-    function getAdminStorageKey(targetRoomId = roomId) {
-        return `pokerAdmin:${normalizeRoomId(targetRoomId) || 'default'}`;
-    }
-
-    function normalizeRoomId(value) {
-        return String(value || '')
-            .normalize('NFKC')
-            .trim()
-            .toLowerCase()
-            .replace(/[^\p{L}\p{N}_-]+/gu, '-')
-            .replace(/^-+|-+$/g, '')
-            .slice(0, 64)
-            .replace(/^-+|-+$/g, '');
-    }
-
-    function normalizeRoomSuffix(value) {
-        return normalizeRoomId(value);
-    }
-
-    function buildRoomMeta(targetRoomId) {
-        const normalizedRoomId = normalizeRoomId(targetRoomId);
-        if (!normalizedRoomId || RESERVED_ROOM_IDS.has(normalizedRoomId) || !ROOM_ID_PATTERN.test(normalizedRoomId)) {
-            return null;
         }
 
-        return {
-            id: normalizedRoomId,
-            suffix: normalizedRoomId,
-            label: normalizedRoomId
-        };
-    }
-
-    function getRoomIdFromLocation() {
-        if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
-            return '';
+        function getAdminStorageKey(targetRoomId = roomId) {
+            return `pokerAdmin:${normalizeRoomId(targetRoomId) || 'default'}`;
         }
 
-        const segments = window.location.pathname.split('/').filter(Boolean);
-        if (segments.length !== 1) {
-            return '';
+        function normalizeRoomId(value) {
+            return String(value || '')
+                .normalize('NFKC')
+                .trim()
+                .toLowerCase()
+                .replace(/[^\p{L}\p{N}_-]+/gu, '-')
+                .replace(/^-+|-+$/g, '')
+                .slice(0, 64)
+                .replace(/^-+|-+$/g, '');
         }
 
-        try {
-            return normalizeRoomId(decodeURIComponent(segments[0]));
-        } catch (error) {
-            return normalizeRoomId(segments[0]);
-        }
-    }
-
-    function buildRoomLink(targetRoomId = roomId) {
-        const normalizedRoomId = normalizeRoomId(targetRoomId);
-        if (!normalizedRoomId) {
-            return '';
+        function normalizeRoomSuffix(value) {
+            return normalizeRoomId(value);
         }
 
-        const url = new URL(window.location.href);
-        url.pathname = `/${encodeURIComponent(normalizedRoomId)}/`;
-        url.search = '';
-        return url.toString();
-    }
-
-    function updateRoomUrl(nextRoomId) {
-        const url = new URL(window.location.href);
-        const normalizedRoomId = normalizeRoomId(nextRoomId);
-
-        if (normalizedRoomId) {
-            url.pathname = `/${encodeURIComponent(normalizedRoomId)}/`;
-            url.search = '';
-        } else {
-            url.pathname = '/';
-            url.search = '';
-        }
-
-        const nextUrl = `${url.pathname}${url.hash}`;
-        window.history.replaceState({}, '', nextUrl);
-    }
-
-    function renderRoomSelectionMeta() {
-        const hasRoom = Boolean(roomId);
-        const shareLink = buildRoomLink(roomId);
-
-        $('#roomBuilderField').toggle(!hasRoom);
-        $('#roomLinkField').toggleClass('hidden', !hasRoom).toggle(hasRoom);
-        $('#createRoomBtn').toggle(!hasRoom);
-        $('#joinBtn').toggle(hasRoom);
-        $('#iAmAdmin').toggle(hasRoom);
-        $('#roomLinkInput').val(shareLink);
-        $('#currentRoomName')
-            .text(hasRoom ? roomId : '---')
-            .attr('title', hasRoom ? shareLink : '');
-        $('#copyRoomLinkBtn').prop('disabled', !hasRoom);
-        $('#copyRoomLinkTopBtn').toggle(Boolean(name) && hasRoom);
-
-        if (!hasRoom) {
-            $('#roomHelpText').text('Введите slug комнаты. Он и станет адресом вида /slug/.');
-            $('#roomStatusText').text('Сначала создайте комнату или откройте готовую ссылку.');
-            return;
-        }
-
-        $('#roomLinkHelpText').text('Скопируйте ссылку и отправьте её команде.');
-        $('#roomStatusText').text('Комната готова. Можно входить самому и приглашать участников по ссылке.');
-    }
-
-    function setActiveRoom(nextRoomId, roomMeta = null) {
-        const normalizedRoomId = normalizeRoomId(nextRoomId);
-        roomId = normalizedRoomId;
-        currentRoomMeta = roomMeta || buildRoomMeta(normalizedRoomId);
-        renderRoomSelectionMeta();
-    }
-
-    async function copyRoomLink() {
-        const shareLink = buildRoomLink();
-        if (!shareLink) {
-            return;
-        }
-
-        try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(shareLink);
-            } else {
-                const tempInput = document.createElement('textarea');
-                tempInput.value = shareLink;
-                tempInput.setAttribute('readonly', '');
-                tempInput.style.position = 'absolute';
-                tempInput.style.left = '-9999px';
-                document.body.appendChild(tempInput);
-                tempInput.select();
-                document.execCommand('copy');
-                document.body.removeChild(tempInput);
+        function buildRoomMeta(targetRoomId) {
+            const normalizedRoomId = normalizeRoomId(targetRoomId);
+            if (!normalizedRoomId || RESERVED_ROOM_IDS.has(normalizedRoomId) || !ROOM_ID_PATTERN.test(normalizedRoomId)) {
+                return null;
             }
 
-            $.toast({
-                class: 'success',
-                message: 'Ссылка комнаты скопирована'
-            });
-        } catch (error) {
-            $.toast({
-                class: 'error',
-                message: 'Не удалось скопировать ссылку'
-            });
-        }
-    }
-
-    const TASK_WHEEL_ITEM_HEIGHT = 40;
-    let taskState = {
-        items: [],
-        selectedIndex: 0
-    };
-    let estimationMode = 'points';
-
-    function normalizeEstimationMode(mode) {
-        return mode === 'hours' ? 'hours' : 'points';
-    }
-
-    function normalizeTaskState(nextState = {}) {
-        const items = Array.from(new Set((Array.isArray(nextState.items) ? nextState.items : [])
-            .map(item => String(item || '').trim())
-            .filter(Boolean)));
-        const rawIndex = Number(nextState.selectedIndex);
-        const safeIndex = Number.isFinite(rawIndex) ? Math.trunc(rawIndex) : 0;
-        const maxIndex = items.length ? items.length - 1 : 0;
-
-        return {
-            items,
-            selectedIndex: items.length ? Math.max(0, Math.min(safeIndex, maxIndex)) : 0
-        };
-    }
-
-    function parseTaskListInput(raw) {
-        return Array.from(new Set(String(raw || '')
-            .split(/[\s,]+/)
-            .map(item => item.trim())
-            .filter(Boolean)));
-    }
-
-    function getIssueIdFromText(text) {
-        const match = String(text || '').match(/\b([A-Za-z][A-Za-z0-9_]*-\d+)\b/);
-        return match ? match[1].toUpperCase() : '';
-    }
-
-    function getTaskLabel(task) {
-        const issueId = getIssueIdFromText(task);
-        if (issueId) return issueId;
-
-        try {
-            const parsed = new URL(task);
-            const parts = parsed.pathname.split('/').filter(Boolean);
-            const lastSegment = parts.pop();
-            return decodeURIComponent(lastSegment || parsed.hostname);
-        } catch (error) {
-            return task.length > 42 ? `${task.slice(0, 39)}...` : task;
-        }
-    }
-
-    function renderEstimationMode() {
-        estimationMode = normalizeEstimationMode(estimationMode);
-        const isJoined = Boolean(name);
-
-        $('#topControls')
-            .css('display', isJoined ? 'flex' : 'none')
-            .toggleClass('admin-mode', isAdmin)
-            .toggleClass('viewer-mode', !isAdmin);
-        $('#adminControls').css('display', isJoined && isAdmin ? 'inline-flex' : 'none');
-        const modeLabel = estimationMode === 'hours' ? 'Часы' : 'Поинты';
-
-        $('#estimationModePanel')
-            .toggle(isJoined)
-            .toggleClass('admin-mode', isAdmin)
-            .toggleClass('viewer-mode', !isAdmin);
-        $('#estimationModeLabel').html(`Оцениваем: <span class="estimation-mode-value" id="estimationModeValue">${modeLabel}</span>`);
-        $('#estimationModeButtons').css('display', isAdmin ? 'inline-flex' : 'none');
-        $('#modePointsBtn').toggleClass('blue active', estimationMode === 'points');
-        $('#modeHoursBtn').toggleClass('blue active', estimationMode === 'hours');
-        $('#averageVote .label').text(estimationMode === 'hours' ? 'Средняя оценка в часах' : 'Средняя оценка в поинтах');
-    }
-
-    function setAverageVoteDisplay(value = '0') {
-        const safeValue = String(value ?? '0');
-        $('#averageVote1').val(safeValue);
-        $('#averageVote .value').text(safeValue);
-    }
-
-    function renderViewerTaskPanel() {
-        const shouldShow = Boolean(name) && !isAdmin && taskState.items.length > 0;
-        const $panel = $('#viewerTaskPanel');
-        const $link = $('#viewerTaskLink');
-
-        if (!shouldShow) {
-            $panel.removeClass('visible');
-            $link.removeAttr('href').removeAttr('title');
-            $('#viewerTaskValue').text('-');
-            return;
-        }
-
-        const selectedTask = taskState.items[taskState.selectedIndex];
-        $link.attr('href', selectedTask).attr('title', selectedTask);
-        $('#viewerTaskValue').text(getTaskLabel(selectedTask));
-        $panel.addClass('visible');
-    }
-
-    function renderTaskControls() {
-        const hasTasks = taskState.items.length > 0;
-        $('#taskSidebar').toggle(Boolean(name) && isAdmin);
-        $('#taskListActions').toggle(isAdmin);
-        $('#loadTaskListBtn').text('Загрузить список');
-        $('#taskPickerSection')
-            .toggleClass('viewer-mode', !isAdmin)
-            .toggleClass('admin-mode', isAdmin);
-        renderViewerTaskPanel();
-        $('.task-wheel-title').text(isAdmin ? 'Список задач' : 'Текущая задача');
-
-        const canNavigate = isAdmin && taskState.items.length > 0;
-        $('#taskPrevBtn, #taskNextBtn').toggle(canNavigate);
-        $('#taskPrevBtn').toggleClass('disabled', !canNavigate || taskState.selectedIndex <= 0);
-        $('#taskNextBtn').toggleClass('disabled', !canNavigate || taskState.selectedIndex >= taskState.items.length - 1);
-        renderEstimationMode();
-    }
-
-    function renderTaskWheel() {
-        taskState = normalizeTaskState(taskState);
-        const hasTasks = taskState.items.length > 0;
-        const $track = $('#taskWheelTrack');
-
-        renderTaskControls();
-        $('#taskPickerSection').toggle(isAdmin && hasTasks);
-        $track.empty();
-
-        if (!hasTasks || !isAdmin) {
-            $track.css('transform', 'translateY(0)');
-            return;
-        }
-
-        $('<div class="task-wheel-spacer"></div>').appendTo($track);
-        taskState.items.forEach((task, index) => {
-            const distance = Math.abs(index - taskState.selectedIndex);
-            const distanceClass = distance === 0
-                ? 'distance-0'
-                : distance === 1
-                    ? 'distance-1'
-                    : distance === 2
-                        ? 'distance-2'
-                        : 'distance-far';
-            const $item = $('<a></a>')
-                .addClass(`task-wheel-item ${distanceClass}${index === taskState.selectedIndex ? ' active' : ''}`)
-                .attr('href', task)
-                .attr('target', '_blank')
-                .attr('rel', 'noopener noreferrer')
-                .attr('title', task);
-
-            $('<span></span>')
-                .addClass('task-wheel-label')
-                .text(getTaskLabel(task))
-                .appendTo($item);
-            $track.append($item);
-        });
-        $('<div class="task-wheel-spacer"></div>').appendTo($track);
-        $track.css('transform', `translateY(${-taskState.selectedIndex * TASK_WHEEL_ITEM_HEIGHT}px)`);
-    }
-
-    function mapTaskStateError(errorCode) {
-        if (errorCode === 'ACK_TIMEOUT') return 'Сервер не ответил. Похоже, страница подключена к старой версии сервера без списка задач';
-        if (errorCode === 'SOCKET_DISCONNECTED') return 'Нет подключения к серверу';
-        if (errorCode === 'FORBIDDEN') return 'Только администратор может менять список задач';
-        if (errorCode === 'TASK_LIST_EMPTY') return 'Список задач пуст';
-        return `Ошибка списка задач: ${errorCode || 'UNKNOWN_ERROR'}`;
-    }
-
-    function emitWithAck(eventName, payload, timeoutMs = 4000) {
-        return new Promise(resolve => {
-            let settled = false;
-            let timer = null;
-            let connectHandler = null;
-
-            const finish = result => {
-                if (settled) return;
-                settled = true;
-                if (timer) {
-                    clearTimeout(timer);
-                }
-                if (connectHandler) {
-                    socket.off('connect', connectHandler);
-                }
-                resolve(result);
+            return {
+                id: normalizedRoomId,
+                suffix: normalizedRoomId,
+                label: normalizedRoomId
             };
+        }
 
-            const emitRequest = () => {
-                socket.emit(eventName, payload, result => {
-                    finish(result || { ok: false, error: 'UNKNOWN_ERROR' });
-                });
-            };
+        function getRoomIdFromLocation() {
+            if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+                return '';
+            }
 
-            timer = setTimeout(() => {
-                finish({ ok: false, error: socket.connected ? 'ACK_TIMEOUT' : 'SOCKET_DISCONNECTED' });
-            }, timeoutMs);
+            const segments = window.location.pathname.split('/').filter(Boolean);
+            if (segments.length !== 1) {
+                return '';
+            }
 
-            if (socket.connected) {
-                emitRequest();
+            try {
+                return normalizeRoomId(decodeURIComponent(segments[0]));
+            } catch (error) {
+                return normalizeRoomId(segments[0]);
+            }
+        }
+
+        function buildRoomLink(targetRoomId = roomId) {
+            const normalizedRoomId = normalizeRoomId(targetRoomId);
+            if (!normalizedRoomId) {
+                return '';
+            }
+
+            const url = new URL(window.location.href);
+            url.pathname = `/${encodeURIComponent(normalizedRoomId)}/`;
+            url.search = '';
+            return url.toString();
+        }
+
+        function updateRoomUrl(nextRoomId) {
+            const url = new URL(window.location.href);
+            const normalizedRoomId = normalizeRoomId(nextRoomId);
+
+            if (normalizedRoomId) {
+                url.pathname = `/${encodeURIComponent(normalizedRoomId)}/`;
+                url.search = '';
+            } else {
+                url.pathname = '/';
+                url.search = '';
+            }
+
+            const nextUrl = `${url.pathname}${url.hash}`;
+            window.history.replaceState({}, '', nextUrl);
+        }
+
+        function renderRoomSelectionMeta() {
+            const hasRoom = Boolean(roomId);
+            const shareLink = buildRoomLink(roomId);
+
+            $('#roomBuilderField').toggle(!hasRoom);
+            $('#roomLinkField').toggleClass('hidden', !hasRoom).toggle(hasRoom);
+            $('#createRoomBtn').toggle(!hasRoom);
+            $('#joinBtn').toggle(hasRoom);
+            $('#iAmAdmin').toggle(hasRoom);
+            $('#roomLinkInput').val(shareLink);
+            $('#currentRoomName')
+                .text(hasRoom ? roomId : '---')
+                .attr('title', hasRoom ? shareLink : '');
+            $('#copyRoomLinkBtn').prop('disabled', !hasRoom);
+            $('#copyRoomLinkTopBtn').toggle(Boolean(name) && hasRoom);
+
+            if (!hasRoom) {
+                $('#roomHelpText').text('Введите slug комнаты. Он и станет адресом вида /slug/.');
+                $('#roomStatusText').text('Сначала создайте комнату или откройте готовую ссылку.');
                 return;
             }
 
-            connectHandler = emitRequest;
-            socket.once('connect', connectHandler);
-        });
-    }
-
-    function mapJoinError(errorCode) {
-        if (errorCode === 'ACK_TIMEOUT') return 'Сервер не ответил на запрос входа';
-        if (errorCode === 'SOCKET_DISCONNECTED') return 'Нет подключения к серверу';
-        if (errorCode === 'ROOM_NOT_FOUND') return 'Комната не найдена. Возможно, ссылка устарела или повреждена';
-        if (errorCode === 'ADMIN_ALREADY_EXISTS') return 'В этой комнате уже есть администратор';
-        if (errorCode === 'NAME_REQUIRED') return 'Введите имя перед входом';
-        return `Ошибка входа: ${errorCode || 'UNKNOWN_ERROR'}`;
-    }
-
-    function mapCreateRoomError(errorCode) {
-        if (errorCode === 'ACK_TIMEOUT') return 'Сервер не ответил на запрос создания комнаты';
-        if (errorCode === 'SOCKET_DISCONNECTED') return 'Нет подключения к серверу';
-        if (errorCode === 'ROOM_SUFFIX_REQUIRED') return 'Введите постфикс для новой комнаты';
-        if (errorCode === 'ROOM_SUFFIX_INVALID') return 'Используйте только буквы, цифры, дефис или underscore';
-        if (errorCode === 'ROOM_ALREADY_EXISTS') return 'Комната с таким адресом уже существует';
-        return `Ошибка создания комнаты: ${errorCode || 'UNKNOWN_ERROR'}`;
-    }
-
-    async function emitTaskSelection(direction) {
-        if (!isAdmin || !taskState.items.length) return;
-
-        const result = await emitWithAck('task_select', { roomId, direction });
-        if (!result || !result.ok) {
-            $.toast({
-                class: 'error',
-                message: mapTaskStateError(result && result.error)
-            });
-        }
-    }
-
-    $('.ui.sticky').sticky({
-        context: 'body',
-        pushing: true,
-        bottomOffset: 0
-    });
-
-    $('#taskListModal').modal({
-        autofocus: false,
-        observeChanges: true
-    });
-
-    async function createRoom() {
-        const roomSuffix = normalizeRoomSuffix($('#roomSuffix').val());
-        if (!roomSuffix) {
-            $.toast({
-                class: 'warning',
-                message: 'Введите постфикс для новой комнаты'
-            });
-            return null;
+            $('#roomLinkHelpText').text('Скопируйте ссылку и отправьте её команде.');
+            $('#roomStatusText').text('Комната готова. Можно входить самому и приглашать участников по ссылке.');
         }
 
-        $('#createRoomBtn').addClass('disabled loading');
-        const result = await emitWithAck('create_room', { roomSuffix });
-        $('#createRoomBtn').removeClass('disabled loading');
-
-        if (!result || !result.ok || !result.room || !result.room.id) {
-            $.toast({
-                class: 'error',
-                message: mapCreateRoomError(result && result.error)
-            });
-            return null;
+        function setActiveRoom(nextRoomId, roomMeta = null) {
+            const normalizedRoomId = normalizeRoomId(nextRoomId);
+            roomId = normalizedRoomId;
+            currentRoomMeta = roomMeta || buildRoomMeta(normalizedRoomId);
+            renderRoomSelectionMeta();
         }
 
-        setActiveRoom(result.room.id, result.room);
-        updateRoomUrl(result.room.id);
-        $('#roomSuffix').val(result.room.suffix || roomSuffix);
-        return result.room;
-    }
+        async function copyRoomLink() {
+            const shareLink = buildRoomLink();
+            if (!shareLink) {
+                return;
+            }
 
-    async function joinSession(newName, newIsAdmin) {
-        if (!roomId) {
-            $.toast({
-                class: 'error',
-                message: 'Сначала создайте комнату или откройте ссылку'
-            });
-            return false;
-        }
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(shareLink);
+                } else {
+                    const tempInput = document.createElement('textarea');
+                    tempInput.value = shareLink;
+                    tempInput.setAttribute('readonly', '');
+                    tempInput.style.position = 'absolute';
+                    tempInput.style.left = '-9999px';
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(tempInput);
+                }
 
-        $('#joinBtn').addClass('disabled loading');
-        const result = await emitWithAck('join', { roomId, name: newName, isAdmin: newIsAdmin });
-        $('#joinBtn').removeClass('disabled loading');
-
-        if (!result || !result.ok) {
-            $.toast({
-                class: 'error',
-                message: mapJoinError(result && result.error)
-            });
-            return false;
-        }
-
-        name = newName;
-        isAdmin = newIsAdmin;
-        localStorage.setItem('pokerName', name);
-        localStorage.setItem(getAdminStorageKey(roomId), String(isAdmin));
-
-        if (result.room) {
-            setActiveRoom(result.room.id, result.room);
-        }
-
-        applyRoomState(result);
-
-        // Re-apply saved vote after join (for page reloads)
-        const savedVote = getVoteWithTTL(getVoteKey());
-        if (savedVote) {
-            socket.emit('vote', { roomId, value: savedVote });
-        }
-        $('#playerName').val(name);
-        $('#playerName').addClass('disabled');
-        $('#roomSuffix').prop('disabled', true);
-        $('#roomLinkInput').prop('disabled', true);
-        $('#isAdmin').prop('disabled', true);
-        $('#joinBtn').prop('disabled', true);
-        $('#createRoomBtn').prop('disabled', true);
-        $('.onlyAuth').hide();
-        $('#joinPanel').hide();
-        $('#sessionUserName').text(name);
-        $('#sessionTopbar').css('display', 'flex');
-        $('#roomWrapper').show();
-        $('#copyRoomLinkTopBtn').show();
-        $('#changeNameBtn, #averageVote').show();
-        setAverageVoteDisplay('0');
-        $('#adminWrapper').css('visibility', 'visible');
-        if (isAdmin) {
-            $('#adminNoteForm').show();
-            $('#noteDisplay').hide();
-        } else {
-            $('#adminNoteForm').hide();
-        }
-        renderTaskControls();
-        return true;
-    }
-
-    $(document).ready(async () => {
-        const savedName = localStorage.getItem('pokerName') || '';
-        const roomFromUrl = getRoomIdFromLocation();
-        const savedAdmin = roomFromUrl
-            ? localStorage.getItem(getAdminStorageKey(roomFromUrl)) === 'true'
-            : false;
-
-        $('#playerName').val(savedName);
-        $('#isAdmin').val(savedAdmin ? '1' : '0');
-        $('#iAmAdmin').toggleClass('green', savedAdmin);
-        renderTaskWheel();
-
-        renderRoomSelectionMeta();
-        $('#copyRoomLinkBtn, #copyRoomLinkTopBtn').click(copyRoomLink);
-
-        if (roomFromUrl) {
-            const roomMeta = buildRoomMeta(roomFromUrl);
-            if (roomMeta) {
-                setActiveRoom(roomFromUrl, roomMeta);
-            } else {
                 $.toast({
-                    class: 'warning',
-                    message: 'Ссылка комнаты выглядит некорректной'
+                    class: 'success',
+                    message: 'Ссылка комнаты скопирована'
+                });
+            } catch (error) {
+                $.toast({
+                    class: 'error',
+                    message: 'Не удалось скопировать ссылку'
                 });
             }
         }
 
-        if (savedName && roomId) {
-            await joinSession(savedName, savedAdmin);
-        }
-    });
+        const TASK_WHEEL_ITEM_HEIGHT = 40;
+        let taskState = {
+            items: [],
+            selectedIndex: 0
+        };
+        let estimationMode = 'points';
 
-    $('#createRoomBtn').click(async () => {
-        const newName = $('#playerName').val().trim();
-        if (!newName) {
-            $.toast({
-                class: 'warning',
-                message: 'Введите имя перед созданием комнаты'
+        function normalizeEstimationMode(mode) {
+            return mode === 'hours' ? 'hours' : 'points';
+        }
+
+        function normalizeTaskState(nextState = {}) {
+            const items = Array.from(new Set((Array.isArray(nextState.items) ? nextState.items : [])
+                .map(item => String(item || '').trim())
+                .filter(Boolean)));
+            const rawIndex = Number(nextState.selectedIndex);
+            const safeIndex = Number.isFinite(rawIndex) ? Math.trunc(rawIndex) : 0;
+            const maxIndex = items.length ? items.length - 1 : 0;
+
+            return {
+                items,
+                selectedIndex: items.length ? Math.max(0, Math.min(safeIndex, maxIndex)) : 0
+            };
+        }
+
+        function parseTaskListInput(raw) {
+            return Array.from(new Set(String(raw || '')
+                .split(/[\s,]+/)
+                .map(item => item.trim())
+                .filter(Boolean)));
+        }
+
+        function getIssueIdFromText(text) {
+            const match = String(text || '').match(/\b([A-Za-z][A-Za-z0-9_]*-\d+)\b/);
+            return match ? match[1].toUpperCase() : '';
+        }
+
+        function getTaskLabel(task) {
+            const issueId = getIssueIdFromText(task);
+            if (issueId) return issueId;
+
+            try {
+                const parsed = new URL(task);
+                const parts = parsed.pathname.split('/').filter(Boolean);
+                const lastSegment = parts.pop();
+                return decodeURIComponent(lastSegment || parsed.hostname);
+            } catch (error) {
+                return task.length > 42 ? `${task.slice(0, 39)}...` : task;
+            }
+        }
+
+        function syncTaskSidebarOffset() {
+            const $sidebar = $('#taskSidebar');
+            const $layout = $('.app-layout');
+            const $controls = $('#topControls');
+
+            if (!$sidebar.length || !$layout.length || !$controls.length || !name || !isAdmin) {
+                $sidebar.css('padding-top', '');
+                return;
+            }
+
+            window.requestAnimationFrame(() => {
+                const layoutRect = $layout[0].getBoundingClientRect();
+                const controlsRect = $controls[0].getBoundingClientRect();
+                const offset = Math.max(0, Math.round(controlsRect.top - layoutRect.top));
+                $sidebar.css('padding-top', `${offset}px`);
             });
-            return;
         }
 
-        const room = await createRoom();
-        if (!room) {
-            return;
+        function renderEstimationMode() {
+            estimationMode = normalizeEstimationMode(estimationMode);
+            const isJoined = Boolean(name);
+
+            $('#topControls')
+                .css('display', isJoined ? 'flex' : 'none')
+                .toggleClass('admin-mode', isAdmin)
+                .toggleClass('viewer-mode', !isAdmin);
+            $('#adminControls').css('display', isJoined && isAdmin ? 'inline-flex' : 'none');
+            const modeLabel = estimationMode === 'hours' ? 'Часы' : 'Поинты';
+
+            $('#estimationModePanel')
+                .toggle(isJoined)
+                .toggleClass('admin-mode', isAdmin)
+                .toggleClass('viewer-mode', !isAdmin);
+            $('#estimationModeLabel').html(`Оцениваем: <span class="estimation-mode-value" id="estimationModeValue">${modeLabel}</span>`);
+            $('#estimationModeButtons').css('display', isAdmin ? 'inline-flex' : 'none');
+            $('#modePointsBtn').toggleClass('blue active', estimationMode === 'points');
+            $('#modeHoursBtn').toggleClass('blue active', estimationMode === 'hours');
+            $('#averageVote .label').text(estimationMode === 'hours' ? 'Средняя оценка в часах' : 'Средняя оценка в поинтах');
         }
 
-        $('#isAdmin').val('1');
-        $('#iAmAdmin').addClass('green');
-        await joinSession(newName, true);
-    });
+        function setAverageVoteDisplay(value = '0') {
+            const safeValue = String(value ?? '0');
+            $('#averageVote1').val(safeValue);
+            $('#averageVote .value').text(safeValue);
+        }
 
-    $('#joinBtn').click(async () => {
-        const newName = $('#playerName').val().trim();
-        const newIsAdmin = $('#isAdmin').val() === '1';
-        if (!newName) {
-            $.toast({
-                class: 'warning',
-                message: 'Введите имя перед входом'
+        function renderViewerTaskPanel() {
+            const shouldShow = Boolean(name) && !isAdmin && taskState.items.length > 0;
+            const $panel = $('#viewerTaskPanel');
+            const $link = $('#viewerTaskLink');
+
+            if (!shouldShow) {
+                $panel.removeClass('visible');
+                $link.removeAttr('href').removeAttr('title');
+                $('#viewerTaskValue').text('-');
+                return;
+            }
+
+            const selectedTask = taskState.items[taskState.selectedIndex];
+            $link.attr('href', selectedTask).attr('title', selectedTask);
+            $('#viewerTaskValue').text(getTaskLabel(selectedTask));
+            $panel.addClass('visible');
+        }
+
+        function renderTaskControls() {
+            const hasTasks = taskState.items.length > 0;
+            $('#taskSidebar').toggle(Boolean(name) && isAdmin);
+            $('#taskListActions').toggle(isAdmin);
+            $('#loadTaskListBtn').text('Загрузить список');
+            $('#taskPickerSection')
+                .toggleClass('viewer-mode', !isAdmin)
+                .toggleClass('admin-mode', isAdmin);
+            renderViewerTaskPanel();
+            $('.task-wheel-title').text(isAdmin ? 'Список задач' : 'Текущая задача');
+
+            const canNavigate = isAdmin && taskState.items.length > 0;
+            $('#taskPrevBtn, #taskNextBtn').toggle(canNavigate);
+            $('#taskPrevBtn').toggleClass('disabled', !canNavigate || taskState.selectedIndex <= 0);
+            $('#taskNextBtn').toggleClass('disabled', !canNavigate || taskState.selectedIndex >= taskState.items.length - 1);
+            renderEstimationMode();
+            syncTaskSidebarOffset();
+        }
+
+        function renderTaskWheel() {
+            taskState = normalizeTaskState(taskState);
+            const hasTasks = taskState.items.length > 0;
+            const $track = $('#taskWheelTrack');
+
+            renderTaskControls();
+            $('#taskPickerSection').toggle(isAdmin && hasTasks);
+            $track.empty();
+
+            if (!hasTasks || !isAdmin) {
+                $track.css('transform', 'translateY(0)');
+                return;
+            }
+
+            $('<div class="task-wheel-spacer"></div>').appendTo($track);
+            taskState.items.forEach((task, index) => {
+                const distance = Math.abs(index - taskState.selectedIndex);
+                const distanceClass = distance === 0
+                    ? 'distance-0'
+                    : distance === 1
+                        ? 'distance-1'
+                        : distance === 2
+                            ? 'distance-2'
+                            : 'distance-far';
+                const $item = $('<a></a>')
+                    .addClass(`task-wheel-item ${distanceClass}${index === taskState.selectedIndex ? ' active' : ''}`)
+                    .attr('href', task)
+                    .attr('target', '_blank')
+                    .attr('rel', 'noopener noreferrer')
+                    .attr('title', task);
+
+                $('<span></span>')
+                    .addClass('task-wheel-label')
+                    .text(getTaskLabel(task))
+                    .appendTo($item);
+                $track.append($item);
             });
-            return;
+            $('<div class="task-wheel-spacer"></div>').appendTo($track);
+            $track.css('transform', `translateY(${-taskState.selectedIndex * TASK_WHEEL_ITEM_HEIGHT}px)`);
         }
 
-        await joinSession(newName, newIsAdmin);
-    });
+        function mapTaskStateError(errorCode) {
+            if (errorCode === 'ACK_TIMEOUT') return 'Сервер не ответил. Похоже, страница подключена к старой версии сервера без списка задач';
+            if (errorCode === 'SOCKET_DISCONNECTED') return 'Нет подключения к серверу';
+            if (errorCode === 'FORBIDDEN') return 'Только администратор может менять список задач';
+            if (errorCode === 'TASK_LIST_EMPTY') return 'Список задач пуст';
+            return `Ошибка списка задач: ${errorCode || 'UNKNOWN_ERROR'}`;
+        }
 
-    $('#changeNameBtn').click(() => {
-        // Clean up stored vote for previous name
-        try { localStorage.removeItem(getVoteKey()); } catch (e) {}
-        localStorage.removeItem('pokerName');
-        localStorage.removeItem(getAdminStorageKey(roomId));
-        localStorage.removeItem('pokerAdmin');
-        location.reload();
-    });
+        function emitWithAck(eventName, payload, timeoutMs = 4000) {
+            return new Promise(resolve => {
+                let settled = false;
+                let timer = null;
+                let connectHandler = null;
 
-    $('#revealBtn').click(() => {
-        if (isAdmin) socket.emit('reveal', roomId);
-    });
+                const finish = result => {
+                    if (settled) return;
+                    settled = true;
+                    if (timer) {
+                        clearTimeout(timer);
+                    }
+                    if (connectHandler) {
+                        socket.off('connect', connectHandler);
+                    }
+                    resolve(result);
+                };
 
-    $('#resetBtn').click(() => {
-        if (isAdmin) socket.emit('reset', roomId);
-    });
+                const emitRequest = () => {
+                    socket.emit(eventName, payload, result => {
+                        finish(result || {ok: false, error: 'UNKNOWN_ERROR'});
+                    });
+                };
 
-    $('#loadTaskListBtn').click(() => {
-        $('#taskListInput').val(taskState.items.join('\n'));
-        $('#taskListModal').modal('show');
-    });
+                timer = setTimeout(() => {
+                    finish({ok: false, error: socket.connected ? 'ACK_TIMEOUT' : 'SOCKET_DISCONNECTED'});
+                }, timeoutMs);
 
-    $('#saveTaskListBtn').click(async function () {
-        if (!isAdmin) return;
+                if (socket.connected) {
+                    emitRequest();
+                    return;
+                }
 
-        const items = parseTaskListInput($('#taskListInput').val());
-        const $btn = $(this);
-        $btn.addClass('loading disabled');
-
-        const result = await emitWithAck('task_list_update', { roomId, items });
-        $btn.removeClass('loading disabled');
-        if (!result || !result.ok) {
-            $.toast({
-                class: 'error',
-                message: mapTaskStateError(result && result.error)
+                connectHandler = emitRequest;
+                socket.once('connect', connectHandler);
             });
-            return;
         }
 
-        $('#taskListModal').modal('hide');
-        $.toast({
-            class: 'success',
-            message: items.length ? 'Список задач сохранен' : 'Список задач очищен'
+        function mapJoinError(errorCode) {
+            if (errorCode === 'ACK_TIMEOUT') return 'Сервер не ответил на запрос входа';
+            if (errorCode === 'SOCKET_DISCONNECTED') return 'Нет подключения к серверу';
+            if (errorCode === 'ROOM_NOT_FOUND') return 'Комната не найдена. Возможно, ссылка устарела или повреждена';
+            if (errorCode === 'ADMIN_ALREADY_EXISTS') return 'В этой комнате уже есть администратор';
+            if (errorCode === 'NAME_REQUIRED') return 'Введите имя перед входом';
+            return `Ошибка входа: ${errorCode || 'UNKNOWN_ERROR'}`;
+        }
+
+        function mapCreateRoomError(errorCode) {
+            if (errorCode === 'ACK_TIMEOUT') return 'Сервер не ответил на запрос создания комнаты';
+            if (errorCode === 'SOCKET_DISCONNECTED') return 'Нет подключения к серверу';
+            if (errorCode === 'ROOM_SUFFIX_REQUIRED') return 'Введите постфикс для новой комнаты';
+            if (errorCode === 'ROOM_SUFFIX_INVALID') return 'Используйте только буквы, цифры, дефис или underscore';
+            if (errorCode === 'ROOM_ALREADY_EXISTS') return 'Комната с таким адресом уже существует';
+            return `Ошибка создания комнаты: ${errorCode || 'UNKNOWN_ERROR'}`;
+        }
+
+        async function emitTaskSelection(direction) {
+            if (!isAdmin || !taskState.items.length) return;
+
+            const result = await emitWithAck('task_select', {roomId, direction});
+            if (!result || !result.ok) {
+                $.toast({
+                    class: 'error',
+                    message: mapTaskStateError(result && result.error)
+                });
+            }
+        }
+
+        $('.ui.sticky').sticky({
+            context: 'body',
+            pushing: true,
+            bottomOffset: 0
         });
-    });
 
-    $('#taskPrevBtn').click(() => {
-        emitTaskSelection(-1);
-    });
+        $('#taskListModal').modal({
+            autofocus: false,
+            observeChanges: true
+        });
 
-    $('#taskNextBtn').click(() => {
-        emitTaskSelection(1);
-    });
+        $(window).on('resize', syncTaskSidebarOffset);
 
-    $('#modePointsBtn').click(async () => {
-        if (!isAdmin) return;
-        const result = await emitWithAck('set_estimation_mode', { roomId, mode: 'points' });
-        if (!result || !result.ok) {
-            $.toast({
-                class: 'error',
-                message: mapTaskStateError(result && result.error)
-            });
-        }
-    });
+        async function createRoom() {
+            const roomSuffix = normalizeRoomSuffix($('#roomSuffix').val());
+            if (!roomSuffix) {
+                $.toast({
+                    class: 'warning',
+                    message: 'Введите постфикс для новой комнаты'
+                });
+                return null;
+            }
 
-    $('#modeHoursBtn').click(async () => {
-        if (!isAdmin) return;
-        const result = await emitWithAck('set_estimation_mode', { roomId, mode: 'hours' });
-        if (!result || !result.ok) {
-            $.toast({
-                class: 'error',
-                message: mapTaskStateError(result && result.error)
-            });
-        }
-    });
+            $('#createRoomBtn').addClass('disabled loading');
+            const result = await emitWithAck('create_room', {roomSuffix});
+            $('#createRoomBtn').removeClass('disabled loading');
 
-    function mapStoryPointsError(errorCode) {
-        if (errorCode === 'FORBIDDEN') return 'Только админ может проставлять Story points';
-        if (errorCode === 'NO_VOTES') return 'Нет голосов для расчета среднего';
-        if (errorCode === 'YOUTRACK_NOT_CONFIGURED') return 'YouTrack не настроен на сервере';
-        if (errorCode === 'ISSUE_NOT_FOUND_IN_NOTE') return 'В поле сообщения укажите задачу, например ABC-123';
-        return `Ошибка YouTrack: ${errorCode || 'UNKNOWN_ERROR'}`;
-    }
+            if (!result || !result.ok || !result.room || !result.room.id) {
+                $.toast({
+                    class: 'error',
+                    message: mapCreateRoomError(result && result.error)
+                });
+                return null;
+            }
 
-    $('#setStoryPointsBtn').click(function () {
-        if (!isAdmin) return;
-        if (!revealed) {
-            $.toast({
-                class: 'warning',
-                message: 'Сначала нажмите "Показать", затем проставляйте Story points'
-            });
-            return;
+            setActiveRoom(result.room.id, result.room);
+            updateRoomUrl(result.room.id);
+            $('#roomSuffix').val(result.room.suffix || roomSuffix);
+            return result.room;
         }
 
-        const $btn = $(this);
-        $btn.addClass('loading disabled');
-        socket.emit('set_story_points', { roomId }, (result) => {
+        async function joinSession(newName, newIsAdmin) {
+            if (!roomId) {
+                $.toast({
+                    class: 'error',
+                    message: 'Сначала создайте комнату или откройте ссылку'
+                });
+                return false;
+            }
+
+            $('#joinBtn').addClass('disabled loading');
+            const result = await emitWithAck('join', {roomId, name: newName, isAdmin: newIsAdmin});
+            $('#joinBtn').removeClass('disabled loading');
+
+            if (!result || !result.ok) {
+                $.toast({
+                    class: 'error',
+                    message: mapJoinError(result && result.error)
+                });
+                return false;
+            }
+
+            name = newName;
+            isAdmin = newIsAdmin;
+            localStorage.setItem('pokerName', name);
+            localStorage.setItem(getAdminStorageKey(roomId), String(isAdmin));
+
+            if (result.room) {
+                setActiveRoom(result.room.id, result.room);
+            }
+
+            applyRoomState(result);
+
+            // Re-apply saved vote after join (for page reloads)
+            const savedVote = getVoteWithTTL(getVoteKey());
+            if (savedVote) {
+                socket.emit('vote', {roomId, value: savedVote});
+            }
+            $('#playerName').val(name);
+            $('#playerName').addClass('disabled');
+            $('#roomSuffix').prop('disabled', true);
+            $('#roomLinkInput').prop('disabled', true);
+            $('#isAdmin').prop('disabled', true);
+            $('#joinBtn').prop('disabled', true);
+            $('#createRoomBtn').prop('disabled', true);
+            $('.onlyAuth').hide();
+            $('#joinPanel').hide();
+            $('#sessionUserName').text(name);
+            $('#sessionTopbar').css('display', 'flex');
+            $('#roomWrapper').show();
+            $('#copyRoomLinkTopBtn').show();
+            $('#changeNameBtn, #averageVote').show();
+            setAverageVoteDisplay('0');
+            $('#adminWrapper').css('visibility', 'visible');
+            if (isAdmin) {
+                $('#adminNoteForm').show();
+                $('#noteDisplay').hide();
+            } else {
+                $('#adminNoteForm').hide();
+            }
+            renderTaskControls();
+            return true;
+        }
+
+        $(document).ready(async () => {
+            const savedName = localStorage.getItem('pokerName') || '';
+            const roomFromUrl = getRoomIdFromLocation();
+            const savedAdmin = roomFromUrl
+                ? localStorage.getItem(getAdminStorageKey(roomFromUrl)) === 'true'
+                : false;
+
+            $('#playerName').val(savedName);
+            $('#isAdmin').val(savedAdmin ? '1' : '0');
+            $('#iAmAdmin').toggleClass('green', savedAdmin);
+            renderTaskWheel();
+
+            renderRoomSelectionMeta();
+            $('#copyRoomLinkBtn, #copyRoomLinkTopBtn').click(copyRoomLink);
+
+            if (roomFromUrl) {
+                const roomMeta = buildRoomMeta(roomFromUrl);
+                if (roomMeta) {
+                    setActiveRoom(roomFromUrl, roomMeta);
+                } else {
+                    $.toast({
+                        class: 'warning',
+                        message: 'Ссылка комнаты выглядит некорректной'
+                    });
+                }
+            }
+
+            if (savedName && roomId) {
+                await joinSession(savedName, savedAdmin);
+            }
+        });
+
+        $('#createRoomBtn').click(async () => {
+            const newName = $('#playerName').val().trim();
+            if (!newName) {
+                $.toast({
+                    class: 'warning',
+                    message: 'Введите имя перед созданием комнаты'
+                });
+                return;
+            }
+
+            const room = await createRoom();
+            if (!room) {
+                return;
+            }
+
+            $('#isAdmin').val('1');
+            $('#iAmAdmin').addClass('green');
+            await joinSession(newName, true);
+        });
+
+        $('#joinBtn').click(async () => {
+            const newName = $('#playerName').val().trim();
+            const newIsAdmin = $('#isAdmin').val() === '1';
+            if (!newName) {
+                $.toast({
+                    class: 'warning',
+                    message: 'Введите имя перед входом'
+                });
+                return;
+            }
+
+            await joinSession(newName, newIsAdmin);
+        });
+
+        $('#changeNameBtn').click(() => {
+            // Clean up stored vote for previous name
+            try {
+                localStorage.removeItem(getVoteKey());
+            } catch (e) {
+            }
+            localStorage.removeItem('pokerName');
+            localStorage.removeItem(getAdminStorageKey(roomId));
+            localStorage.removeItem('pokerAdmin');
+            location.reload();
+        });
+
+        $('#revealBtn').click(() => {
+            if (isAdmin) socket.emit('reveal', roomId);
+        });
+
+        $('#resetBtn').click(() => {
+            if (isAdmin) socket.emit('reset', roomId);
+        });
+
+        $('#loadTaskListBtn').click(() => {
+            $('#taskListInput').val(taskState.items.join('\n'));
+            $('#taskListModal').modal('show');
+        });
+
+        $('#saveTaskListBtn').click(async function () {
+            if (!isAdmin) return;
+
+            const items = parseTaskListInput($('#taskListInput').val());
+            const $btn = $(this);
+            $btn.addClass('loading disabled');
+
+            const result = await emitWithAck('task_list_update', {roomId, items});
             $btn.removeClass('loading disabled');
             if (!result || !result.ok) {
                 $.toast({
                     class: 'error',
-                    message: mapStoryPointsError(result && result.error)
+                    message: mapTaskStateError(result && result.error)
                 });
                 return;
             }
 
-            const summarySuffix = result.issueSummary ? ` - ${result.issueSummary}` : '';
+            $('#taskListModal').modal('hide');
             $.toast({
                 class: 'success',
-                message: `${result.issueIdReadable}: Story points = ${result.average}${summarySuffix}`
+                message: items.length ? 'Список задач сохранен' : 'Список задач очищен'
             });
         });
-    });
 
-    $('#adminNote').on('input keydown change', function () {
-        const note = $(this).val();
-        socket.emit('note_update', {roomId, note});
-    });
+        $('#taskPrevBtn').click(() => {
+            emitTaskSelection(-1);
+        });
 
-    function applyNote(note) {
-        const nextNote = String(note || '');
+        $('#taskNextBtn').click(() => {
+            emitTaskSelection(1);
+        });
 
-        if (isAdmin) {
-            if ($('#adminNote').val() !== nextNote) {
-                $('#adminNote').val(nextNote);
-            }
-            $('#noteDisplay').hide().empty();
-            return;
-        }
-
-        if (nextNote.trim().length > 0) {
-            $('#noteDisplay').html(parseLinks(nextNote)).show();
-            return;
-        }
-
-        $('#noteDisplay').hide().empty();
-    }
-
-    function applyRoomState(roomState = {}) {
-        if (roomState.room) {
-            setActiveRoom(roomState.room.id, roomState.room);
-        }
-
-        if (typeof roomState.revealed === 'boolean') {
-            revealed = roomState.revealed;
-        }
-
-        if (typeof roomState.estimationMode === 'string') {
-            estimationMode = normalizeEstimationMode(roomState.estimationMode);
-        }
-
-        if (roomState.taskState) {
-            taskState = normalizeTaskState(roomState.taskState);
-            renderTaskWheel();
-        }
-
-        if (Array.isArray(roomState.players)) {
-            renderPlayers(roomState.players);
-        }
-
-        if (typeof roomState.note === 'string') {
-            applyNote(roomState.note);
-        }
-    }
-
-    function calcAvg(numericVotes) {
-        if (!numericVotes.length) return '0';
-        return (numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length).toFixed(0);
-    }
-
-    const gradientClasses = ['gradient-1', 'gradient-2', 'gradient-3', 'gradient-4', 'gradient-5'];
-
-    function getGradientIndex(id, count) {
-        let hash = 0;
-        for (let i = 0; i < id.length; i++) {
-            hash = (hash << 5) - hash + id.charCodeAt(i);
-        }
-        return Math.abs(hash) % count;
-    }
-
-    function renderPlayers(players) {
-        const $players = $('#players');
-        const current = players.find(p => p.id === mySocketId);
-        const existingIds = new Set();
-        const numericVotes = [];
-
-        if (current) {
-            $('#voteButtons').empty().hide();
-            const availableValues = estimationMode === 'hours' ? allEstimateValues : originalPoints;
-            availableValues.forEach(p => {
-                const isOriginal = originalPoints.includes(p);
-                const btn = $(`<button class="ui big button ${isOriginal ? 'orange' : ''}">${p}</button>`);
-                btn.click(() => {
-                    socket.emit('vote', {roomId, value: p});
-                    // Persist selection locally so it survives reloads
-                    try { setVoteWithTTL(getVoteKey(), p); } catch (e) {}
+        $('#modePointsBtn').click(async () => {
+            if (!isAdmin) return;
+            const result = await emitWithAck('set_estimation_mode', {roomId, mode: 'points'});
+            if (!result || !result.ok) {
+                $.toast({
+                    class: 'error',
+                    message: mapTaskStateError(result && result.error)
                 });
-                if (current.vote === p) btn.addClass('blue');
-                $('#voteButtons').append(btn);
-            });
-            $('#voteButtons').show();
+            }
+        });
+
+        $('#modeHoursBtn').click(async () => {
+            if (!isAdmin) return;
+            const result = await emitWithAck('set_estimation_mode', {roomId, mode: 'hours'});
+            if (!result || !result.ok) {
+                $.toast({
+                    class: 'error',
+                    message: mapTaskStateError(result && result.error)
+                });
+            }
+        });
+
+        function mapStoryPointsError(errorCode) {
+            if (errorCode === 'FORBIDDEN') return 'Только админ может проставлять Story points';
+            if (errorCode === 'NO_VOTES') return 'Нет голосов для расчета среднего';
+            if (errorCode === 'YOUTRACK_NOT_CONFIGURED') return 'YouTrack не настроен на сервере';
+            if (errorCode === 'ISSUE_NOT_FOUND_IN_NOTE') return 'В поле сообщения укажите задачу, например ABC-123';
+            return `Ошибка YouTrack: ${errorCode || 'UNKNOWN_ERROR'}`;
         }
 
-        const admin = players.find(p => p.isAdmin);
-        $('#currentAdmin').text(admin ? `${admin.name}` : '---');
+        $('#setStoryPointsBtn').click(function () {
+            if (!isAdmin) return;
+            if (!revealed) {
+                $.toast({
+                    class: 'warning',
+                    message: 'Сначала нажмите "Показать", затем проставляйте Story points'
+                });
+                return;
+            }
 
-        if (revealed) {
-            players.sort((a, b) => {
-                if (a.vote === null) return 1;
-                if (b.vote === null) return -1;
-                return parseFloat(a.vote) - parseFloat(b.vote);
+            const $btn = $(this);
+            $btn.addClass('loading disabled');
+            socket.emit('set_story_points', {roomId}, (result) => {
+                $btn.removeClass('loading disabled');
+                if (!result || !result.ok) {
+                    $.toast({
+                        class: 'error',
+                        message: mapStoryPointsError(result && result.error)
+                    });
+                    return;
+                }
+
+                const summarySuffix = result.issueSummary ? ` - ${result.issueSummary}` : '';
+                $.toast({
+                    class: 'success',
+                    message: `${result.issueIdReadable}: Story points = ${result.average}${summarySuffix}`
+                });
             });
+        });
+
+        $('#adminNote').on('input keydown change', function () {
+            const note = $(this).val();
+            socket.emit('note_update', {roomId, note});
+        });
+
+        function applyNote(note) {
+            const nextNote = String(note || '');
+
+            if (isAdmin) {
+                if ($('#adminNote').val() !== nextNote) {
+                    $('#adminNote').val(nextNote);
+                }
+                $('#noteDisplay').hide().empty();
+                return;
+            }
+
+            if (nextNote.trim().length > 0) {
+                $('#noteDisplay').html(parseLinks(nextNote)).show();
+                return;
+            }
+
+            $('#noteDisplay').hide().empty();
         }
 
-        players.forEach(player => {
-            const voted = Boolean(player.vote);
-            const gradientIndex = getGradientIndex(player.id, gradientClasses.length);
-            const gradient = voted ? gradientClasses[gradientIndex] : null;
-            const existing = $players.find(`[data-id="${player.id}"]`);
+        function applyRoomState(roomState = {}) {
+            if (roomState.room) {
+                setActiveRoom(roomState.room.id, roomState.room);
+            }
 
-            const showVote = revealed || player.id === mySocketId;
-            const point = showVote && voted ? player.vote : '?';
+            if (typeof roomState.revealed === 'boolean') {
+                revealed = roomState.revealed;
+            }
 
-            let card;
-            if (existing.length) {
-                card = existing;
-                card.find('.selectedPoint').text(point);
-                card.find('.header').text(player.name);
-                card
-                    .removeClass()
-                    .addClass(`ui raised link card ${voted ? gradient : 'default-card'}`)
-                    .attr('data-id', player.id);
-                $players.append(card); // reorder
+            if (typeof roomState.estimationMode === 'string') {
+                estimationMode = normalizeEstimationMode(roomState.estimationMode);
+            }
+
+            if (roomState.taskState) {
+                taskState = normalizeTaskState(roomState.taskState);
+                renderTaskWheel();
+            }
+
+            if (Array.isArray(roomState.players)) {
+                renderPlayers(roomState.players);
+            }
+
+            if (typeof roomState.note === 'string') {
+                applyNote(roomState.note);
+            }
+        }
+
+        function calcAvg(numericVotes) {
+            if (!numericVotes.length) return '0';
+            return (numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length).toFixed(0);
+        }
+
+        const gradientClasses = ['gradient-1', 'gradient-2', 'gradient-3', 'gradient-4', 'gradient-5'];
+
+        function getGradientIndex(id, count) {
+            let hash = 0;
+            for (let i = 0; i < id.length; i++) {
+                hash = (hash << 5) - hash + id.charCodeAt(i);
+            }
+            return Math.abs(hash) % count;
+        }
+
+        function renderPlayers(players) {
+            const $players = $('#players');
+            const current = players.find(p => p.id === mySocketId);
+            const existingIds = new Set();
+            const numericVotes = [];
+
+            if (current) {
+                $('#voteButtons').empty().hide();
+                const availableValues = estimationMode === 'hours' ? allEstimateValues : originalPoints;
+                availableValues.forEach(p => {
+                    const isOriginal = originalPoints.includes(p);
+                    const btn = $(`<button class="ui big button ${isOriginal ? 'orange' : ''}">${p}</button>`);
+                    btn.click(() => {
+                        socket.emit('vote', {roomId, value: p});
+                        // Persist selection locally so it survives reloads
+                        try {
+                            setVoteWithTTL(getVoteKey(), p);
+                        } catch (e) {
+                        }
+                    });
+                    if (current.vote === p) btn.addClass('blue');
+                    $('#voteButtons').append(btn);
+                });
+                $('#voteButtons').show();
+            }
+
+            const admin = players.find(p => p.isAdmin);
+            $('#currentAdmin').text(admin ? `${admin.name}` : '---');
+
+            if (revealed) {
+                players.sort((a, b) => {
+                    if (a.vote === null) return 1;
+                    if (b.vote === null) return -1;
+                    return parseFloat(a.vote) - parseFloat(b.vote);
+                });
+            }
+
+            players.forEach(player => {
+                const voted = Boolean(player.vote);
+                const gradientIndex = getGradientIndex(player.id, gradientClasses.length);
+                const gradient = voted ? gradientClasses[gradientIndex] : null;
+                const existing = $players.find(`[data-id="${player.id}"]`);
+
+                const showVote = revealed || player.id === mySocketId;
+                const point = showVote && voted ? player.vote : '?';
+
+                let card;
+                if (existing.length) {
+                    card = existing;
+                    card.find('.selectedPoint').text(point);
+                    card.find('.header').text(player.name);
+                    card
+                        .removeClass()
+                        .addClass(`ui raised link card ${voted ? gradient : 'default-card'}`)
+                        .attr('data-id', player.id);
+                    $players.append(card); // reorder
+                } else {
+                    const item = $(`<div class="ui raised link card ${voted ? gradient : 'default-card'}" data-id="${player.id}"></div>`);
+                    const content = $('<div class="content flex-center"></div>');
+                    const pointEl = $(`<div class="selectedPoint">${point}</div>`);
+                    const header = $(`<div class="mini header">${player.name}</div>`);
+                    content.append(pointEl).append(header);
+                    item.append(content);
+                    $players.append(item);
+                }
+
+                if (player.vote && !isNaN(player.vote)) {
+                    numericVotes.push(parseFloat(player.vote));
+                }
+
+                existingIds.add(player.id);
+            });
+
+            $players.children().each(function () {
+                const id = $(this).data('id');
+                if (!existingIds.has(id)) {
+                    $(this).remove();
+                }
+            });
+
+            const roundedAvg = calcAvg(numericVotes);
+            if (revealed && numericVotes.length > 0) {
+                setAverageVoteDisplay(roundedAvg);
+                $('#averageVote').transition('flash');
             } else {
-                const item = $(`<div class="ui raised link card ${voted ? gradient : 'default-card'}" data-id="${player.id}"></div>`);
-                const content = $('<div class="content flex-center"></div>');
-                const pointEl = $(`<div class="selectedPoint">${point}</div>`);
-                const header = $(`<div class="mini header">${player.name}</div>`);
-                content.append(pointEl).append(header);
-                item.append(content);
-                $players.append(item);
+                setAverageVoteDisplay('0');
             }
-
-            if (player.vote && !isNaN(player.vote)) {
-                numericVotes.push(parseFloat(player.vote));
-            }
-
-            existingIds.add(player.id);
-        });
-
-        $players.children().each(function () {
-            const id = $(this).data('id');
-            if (!existingIds.has(id)) {
-                $(this).remove();
-            }
-        });
-
-        const roundedAvg = calcAvg(numericVotes);
-        if (revealed && numericVotes.length > 0) {
-            setAverageVoteDisplay(roundedAvg);
-            $('#averageVote').transition('flash');
-        } else {
-            setAverageVoteDisplay('0');
         }
-    }
 
-    
-    socket.on('players_update', renderPlayers);
-    socket.on('votes_update', renderPlayers);
-    socket.on('reveal_update', state => {
-        revealed = state;
-        socket.emit('get_players', roomId);
-        if (!state) {
-            setAverageVoteDisplay('0');
-            // Round reset: clear stored vote
-            try { localStorage.removeItem(getVoteKey()); } catch (e) {}
+
+        socket.on('players_update', renderPlayers);
+        socket.on('votes_update', renderPlayers);
+        socket.on('reveal_update', state => {
+            revealed = state;
+            socket.emit('get_players', roomId);
+            if (!state) {
+                setAverageVoteDisplay('0');
+                // Round reset: clear stored vote
+                try {
+                    localStorage.removeItem(getVoteKey());
+                } catch (e) {
+                }
+                $.toast({
+                    class: 'warning',
+                    message: `Оценки сброшены`
+                });
+            }
+        });
+        socket.on('note_update', note => {
+            applyNote(note);
+        });
+        socket.on('task_state_update', nextTaskState => {
+            taskState = normalizeTaskState(nextTaskState);
+            renderTaskWheel();
+        });
+        socket.on('estimation_mode_update', nextMode => {
+            estimationMode = normalizeEstimationMode(nextMode);
+            renderEstimationMode();
+            if (name) {
+                socket.emit('get_players', roomId);
+            }
+        });
+        socket.on('user_event', ({message, type}) => {
             $.toast({
-                class: 'warning',
-                message: `Оценки сброшены`
+                class: type,
+                message
+            });
+        });
+
+        function parseLinks(text) {
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            return text.replace(urlRegex, url => {
+                const display = url.length > 50 ? url.slice(0, 47) + '...' : url;
+                return `<a href="${url}" target="_blank" rel="noopener noreferrer">${display}</a>`;
             });
         }
-    });
-    socket.on('note_update', note => {
-        applyNote(note);
-    });
-    socket.on('task_state_update', nextTaskState => {
-        taskState = normalizeTaskState(nextTaskState);
-        renderTaskWheel();
-    });
-    socket.on('estimation_mode_update', nextMode => {
-        estimationMode = normalizeEstimationMode(nextMode);
-        renderEstimationMode();
-        if (name) {
-            socket.emit('get_players', roomId);
-        }
-    });
-    socket.on('user_event', ({message, type}) => {
-        $.toast({
-            class: type,
-            message
-        });
-    });
 
-    function parseLinks(text) {
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
-        return text.replace(urlRegex, url => {
-            const display = url.length > 50 ? url.slice(0, 47) + '...' : url;
-            return `<a href="${url}" target="_blank" rel="noopener noreferrer">${display}</a>`;
-        });
-    }
-
-</script>
+    </script>
 </body>
 </html>
