@@ -1371,8 +1371,19 @@
 
         function setAverageVoteDisplay(value = '0') {
             const safeValue = String(value ?? '0');
+            const $value = $('#averageVote .value');
+            const changed = $('#averageVote1').val() !== safeValue || $value.text() !== safeValue;
             $('#averageVote1').val(safeValue);
-            $('#averageVote .value').text(safeValue);
+            $value.text(safeValue);
+            return changed;
+        }
+
+        function animateAverageVoteDisplay() {
+            $('#averageVote').transition({
+                animation: 'flash',
+                duration: 200,
+                queue: false
+            });
         }
 
         function renderViewerTaskPanel() {
@@ -1600,6 +1611,7 @@
                 setActiveRoom(result.room.id, result.room);
             }
 
+            setAverageVoteDisplay('0');
             applyRoomState(result);
 
             // Re-apply saved vote after join (for page reloads)
@@ -1621,7 +1633,6 @@
             $('#roomWrapper').show();
             $('#copyRoomLinkTopBtn').show();
             $('#changeNameBtn, #averageVote').show();
-            setAverageVoteDisplay('0');
             $('#adminWrapper').css('visibility', 'visible');
             if (isAdmin) {
                 $('#adminNoteForm').show();
@@ -1888,6 +1899,13 @@
             const existingIds = new Set();
             const numericVotes = [];
 
+            if (current && (current.vote === null || typeof current.vote === 'undefined')) {
+                try {
+                    localStorage.removeItem(getVoteKey());
+                } catch (e) {
+                }
+            }
+
             if (current) {
                 $('#voteButtons').empty().hide();
                 const availableValues = estimationMode === 'hours' ? allEstimateValues : originalPoints;
@@ -1964,8 +1982,10 @@
 
             const roundedAvg = calcAvg(numericVotes);
             if (revealed && numericVotes.length > 0) {
-                setAverageVoteDisplay(roundedAvg);
-                $('#averageVote').transition('flash');
+                const averageChanged = setAverageVoteDisplay(roundedAvg);
+                if (averageChanged) {
+                    animateAverageVoteDisplay();
+                }
             } else {
                 setAverageVoteDisplay('0');
             }

@@ -405,6 +405,65 @@ describe('socket server', () => {
     }
   });
 
+  test('changing estimation mode clears existing votes for the new scale', async () => {
+    const adminClient = await connectClient(port);
+    const viewerClient = await connectClient(port);
+
+    try {
+      const createResult = await createRoom(adminClient, 'mode-clears-votes-room');
+      const roomId = createResult.room.id;
+
+      await joinRoom(adminClient, {
+        roomId,
+        name: 'Admin',
+        isAdmin: true,
+      });
+      await joinRoom(viewerClient, {
+        roomId,
+        name: 'Viewer',
+      });
+
+      const initialVotePromise = waitForEvent(
+        adminClient,
+        'votes_update',
+        players => players.some(player => player.name === 'Viewer' && player.vote === '5'),
+      );
+      viewerClient.emit('vote', { roomId, value: '5' });
+      await expect(initialVotePromise).resolves.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Viewer', vote: '5' }),
+        ]),
+      );
+
+      const hoursModePromise = waitForEvent(viewerClient, 'estimation_mode_update', mode => mode === 'hours');
+      const clearedVotesPromise = waitForEvent(
+        viewerClient,
+        'votes_update',
+        players => players.every(player => player.vote === null),
+      );
+
+      const setModeResult = await emitWithAck(adminClient, 'set_estimation_mode', {
+        roomId,
+        mode: 'hours',
+      });
+
+      expect(setModeResult).toEqual({
+        ok: true,
+        estimationMode: 'hours',
+      });
+      await expect(hoursModePromise).resolves.toBe('hours');
+      await expect(clearedVotesPromise).resolves.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Admin', vote: null }),
+          expect.objectContaining({ name: 'Viewer', vote: null }),
+        ]),
+      );
+    } finally {
+      adminClient.close();
+      viewerClient.close();
+    }
+  });
+
   test('blocks viewers from mutating admin-only room state', async () => {
     const adminClient = await connectClient(port);
     const viewerClient = await connectClient(port);

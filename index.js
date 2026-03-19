@@ -294,9 +294,15 @@ io.on('connection', socket => {
 
         try {
             roomRegistry.assertMembership(roomId, socket.id, { requireAdmin: true });
-            const estimationMode = roomRegistry.setEstimationMode(roomId, mode);
-            io.to(roomId).emit('estimation_mode_update', estimationMode);
-            respond({ ok: true, estimationMode });
+            const updateResult = roomRegistry.setEstimationMode(roomId, mode);
+            if (updateResult.modeChanged) {
+                io.to(roomId).emit('estimation_mode_update', updateResult.estimationMode);
+                if (updateResult.revealChanged) {
+                    io.to(roomId).emit('reveal_update', updateResult.revealed);
+                }
+                io.to(roomId).emit('votes_update', updateResult.players);
+            }
+            respond({ ok: true, estimationMode: updateResult.estimationMode });
         } catch (error) {
             respond({
                 ok: false,

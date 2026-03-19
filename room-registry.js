@@ -83,6 +83,21 @@ function createInitialRoomState(roomId) {
 function createRoomRegistry() {
     const roomStates = new Map();
 
+    function resetVotingState(roomState) {
+        const players = Object.values(roomState.players);
+        players.forEach(player => {
+            player.vote = null;
+        });
+        const revealChanged = roomState.revealed;
+        roomState.revealed = false;
+
+        return {
+            players,
+            revealed: roomState.revealed,
+            revealChanged,
+        };
+    }
+
     function createRoom({ roomSuffix }) {
         const normalizedRoomId = normalizeRoomSuffix(roomSuffix);
         if (!normalizedRoomId) {
@@ -251,8 +266,25 @@ function createRoomRegistry() {
 
     function setEstimationMode(roomId, mode) {
         const roomState = ensureRoomState(roomId);
-        roomState.estimationMode = normalizeEstimationMode(mode);
-        return roomState.estimationMode;
+        const nextMode = normalizeEstimationMode(mode);
+        const modeChanged = roomState.estimationMode !== nextMode;
+
+        if (modeChanged) {
+            roomState.estimationMode = nextMode;
+            return {
+                estimationMode: roomState.estimationMode,
+                modeChanged,
+                ...resetVotingState(roomState),
+            };
+        }
+
+        return {
+            estimationMode: roomState.estimationMode,
+            modeChanged,
+            players: Object.values(roomState.players),
+            revealed: roomState.revealed,
+            revealChanged: false,
+        };
     }
 
     function selectTask(roomId, direction) {
@@ -294,15 +326,12 @@ function createRoomRegistry() {
 
     function resetRoom(roomId) {
         const roomState = ensureRoomState(roomId);
-        Object.values(roomState.players).forEach(player => {
-            player.vote = null;
-        });
-        roomState.revealed = false;
+        const votingState = resetVotingState(roomState);
         roomState.note = '';
 
         return {
-            players: Object.values(roomState.players),
-            revealed: roomState.revealed,
+            players: votingState.players,
+            revealed: votingState.revealed,
             note: roomState.note,
         };
     }
