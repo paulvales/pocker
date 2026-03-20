@@ -86,12 +86,21 @@ function getHomePageCandidates(config) {
 }
 
 function getHistoryPageCandidates(config) {
-    return [
-        {
-            fileName: 'history.html',
-            filePath: config.frontend.legacyHistoryFilePath,
-        },
-    ];
+    const historyCandidates = [];
+
+    if (config.frontend.mode === 'react') {
+        historyCandidates.push({
+            fileName: 'index.html',
+            filePath: config.frontend.reactEntryFilePath,
+        });
+    }
+
+    historyCandidates.push({
+        fileName: 'history.html',
+        filePath: config.frontend.legacyHistoryFilePath,
+    });
+
+    return historyCandidates;
 }
 
 function createHttpRequestHandler({ config, roomRegistry, estimationHistoryStore }) {
@@ -119,6 +128,12 @@ function createHttpRequestHandler({ config, roomRegistry, estimationHistoryStore
             }
 
             if (pathname === HTTP_ROUTES.history) {
+                res.writeHead(302, { Location: HTTP_ROUTES.historyPage });
+                res.end();
+                return;
+            }
+
+            if (pathname === HTTP_ROUTES.historyHtml && config.frontend.mode === 'react') {
                 res.writeHead(302, { Location: HTTP_ROUTES.historyPage });
                 res.end();
                 return;

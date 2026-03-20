@@ -133,15 +133,7 @@ export function createVersionPayload(input: {
 };
 
 export function createRoomSnapshotPayload(value?: unknown): RoomSnapshotDto;
-export function createHistoryResponse(value?: {
-  items?: unknown[];
-  meta?: {
-    rooms?: unknown[];
-    participants?: unknown[];
-    estimateTypes?: unknown[];
-    pagination?: Partial<PaginationDto>;
-  };
-}): HistoryResponseDto;
+export function createHistoryResponse(value?: unknown): HistoryResponseDto;
 
 export function createSocketAckSuccess<T extends Record<string, unknown>>(
   payload?: T,
