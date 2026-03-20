@@ -192,7 +192,8 @@ describe('socket server', () => {
 
     expect(home.statusCode).toBe(200);
     expect(home.body).toContain('<div id="root"></div>');
-    expect(home.body).toContain('<title>Pocker React</title>');
+    expect(home.body).toContain('<title>Scrum Poker</title>');
+    expect(home.body).toContain('fomantic-ui@2.9.2/dist/semantic.min.css');
     expect(home.body).not.toContain('id="historyTopBtn"');
 
     expect(homeHtml.statusCode).toBe(302);

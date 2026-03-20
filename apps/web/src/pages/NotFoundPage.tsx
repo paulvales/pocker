@@ -2,17 +2,14 @@ import { Link } from 'react-router-dom';
 
 export function NotFoundPage() {
   return (
-    <section className="page-grid">
-      <article className="panel panel-error">
-        <p className="eyebrow">404</p>
-        <h2>Route not found</h2>
-        <p className="lead">
-          This path is not part of the current Pocker workspace shell.
-        </p>
-        <Link className="button-primary" to="/">
-          Back to home
+    <div className="ui container" style={{ padding: '2rem 1rem' }}>
+      <div className="ui warning message">
+        <div className="header">404</div>
+        <p>Маршрут не найден.</p>
+        <Link className="ui primary button" to="/">
+          На главную
         </Link>
-      </article>
-    </section>
+      </div>
+    </div>
   );
 }

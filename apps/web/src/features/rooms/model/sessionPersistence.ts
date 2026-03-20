@@ -1,6 +1,7 @@
 import { normalizeRoomSlug } from './roomRoute';
 
 const PLAYER_NAME_STORAGE_KEY = 'pokerName';
+const CREATE_ROOM_INTENT_STORAGE_KEY = 'pockerCreateRoomIntent';
 
 function getAdminStorageKey(roomSlug: string): string {
   return `pokerAdmin:${normalizeRoomSlug(roomSlug) || 'default'}`;
@@ -8,6 +9,10 @@ function getAdminStorageKey(roomSlug: string): string {
 
 function canUseStorage(): boolean {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+}
+
+function canUseSessionStorage(): boolean {
+  return typeof window !== 'undefined' && typeof window.sessionStorage !== 'undefined';
 }
 
 export function readStoredPlayerName(): string {
@@ -80,6 +85,47 @@ export function clearStoredAdminIntent(roomSlug: string): void {
 
   try {
     window.localStorage.removeItem(getAdminStorageKey(roomSlug));
+  } catch {
+    // ignore persistence errors
+  }
+}
+
+export function readStoredCreateRoomIntent(): string {
+  if (!canUseSessionStorage()) {
+    return '';
+  }
+
+  try {
+    return normalizeRoomSlug(
+      window.sessionStorage.getItem(CREATE_ROOM_INTENT_STORAGE_KEY) || '',
+    );
+  } catch {
+    return '';
+  }
+}
+
+export function writeStoredCreateRoomIntent(roomSlug: string): void {
+  if (!canUseSessionStorage()) {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(
+      CREATE_ROOM_INTENT_STORAGE_KEY,
+      normalizeRoomSlug(roomSlug),
+    );
+  } catch {
+    // ignore persistence errors
+  }
+}
+
+export function clearStoredCreateRoomIntent(): void {
+  if (!canUseSessionStorage()) {
+    return;
+  }
+
+  try {
+    window.sessionStorage.removeItem(CREATE_ROOM_INTENT_STORAGE_KEY);
   } catch {
     // ignore persistence errors
   }

@@ -67,6 +67,8 @@ describe('HistoryPage', () => {
       </MemoryRouter>,
     );
 
+    expect(screen.getByText('История оценок')).toBeInTheDocument();
+
     await screen.findByText('APP-21');
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -119,8 +121,8 @@ describe('HistoryPage', () => {
       expect(fetchMock).toHaveBeenCalled();
     });
 
-    await user.type(screen.getByLabelText('Room'), 'alpha-room');
-    await user.click(screen.getByRole('button', { name: 'Apply filters' }));
+    await user.selectOptions(screen.getByLabelText('Комната'), 'alpha-room');
+    await user.click(screen.getByRole('button', { name: 'Применить' }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenLastCalledWith(

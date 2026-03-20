@@ -11,7 +11,7 @@ function LocationProbe() {
 }
 
 describe('HomePage', () => {
-  it('shows the saved identity and navigates into the room route', async () => {
+  it('renders the legacy create-room shell and routes into the room slug', async () => {
     const user = userEvent.setup();
     window.localStorage.setItem('pokerName', 'Alice');
 
@@ -25,9 +25,13 @@ describe('HomePage', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText('Alice')).toBeInTheDocument();
+    expect(screen.getByText('Скрум Покер Онлине')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Alice')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Open room' }));
+    await user.type(screen.getByLabelText('Название комнаты'), 'alpha-room');
+    await user.click(screen.getByRole('button', { name: 'Создать комнату' }));
+
+    expect(window.sessionStorage.getItem('pockerCreateRoomIntent')).toBe('alpha-room');
 
     await waitFor(() => {
       expect(screen.getByTestId('location')).toHaveTextContent('/alpha-room');

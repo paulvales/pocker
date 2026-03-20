@@ -9,15 +9,13 @@ export function RouteErrorBoundary() {
 
   return (
     <AppShell>
-      <section className="panel panel-error">
-        <p className="eyebrow">Routing Error</p>
-        <h1>Route failed to render</h1>
-        <p className="lead">
-          The application shell is available, but this screen threw while it was
-          rendering.
-        </p>
-        <pre className="error-details">{message}</pre>
-      </section>
+      <div className="ui container" style={{ padding: '2rem 1rem' }}>
+        <div className="ui negative message">
+          <div className="header">Ошибка маршрута</div>
+          <p>Экран не удалось отрисовать.</p>
+          <pre className="route-error-pre">{message}</pre>
+        </div>
+      </div>
     </AppShell>
   );
 }
