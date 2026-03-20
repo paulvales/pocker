@@ -11,11 +11,10 @@ const app = createServerApp({
 
 if (require.main === module) {
     app.start()
-        .then(() => {
-            console.log(`Socket.IO server running on port ${app.config.port}`);
-        })
         .catch(error => {
-            console.error('Failed to initialize estimation history store', error);
+            app.errorMonitor.capture(error, {
+                event: 'server.start_failed',
+            });
             process.exit(1);
         });
 }

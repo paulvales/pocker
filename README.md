@@ -50,6 +50,19 @@ Run the unit tests:
 npm test
 ```
 
+## Operations Baseline
+
+The server now ships with an operations baseline for SaaS hardening:
+
+- structured JSON logging with secret redaction
+- pluggable error monitoring via `createServerApp({ onError })`
+- PostgreSQL-backed audit trail for administrative room actions
+- socket rate limiting for room creation, joins, mutations, votes, and reactions
+- default security headers on HTML, JSON, redirects, and plain-text responses
+
+Environment knobs live in `.env.example`, including `POCKER_LOG_LEVEL`, `POCKER_SERVICE_NAME`, and the `POCKER_RATE_LIMIT_*` settings.
+Operational conventions for secrets, monitoring hooks, audit coverage, and abuse protection are documented in [docs/operations-baseline.md](docs/operations-baseline.md).
+
 ## Dynamic Rooms
 
 Rooms are created on demand from the UI.

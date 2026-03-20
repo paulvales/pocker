@@ -10,9 +10,37 @@ const {
     parseHistoryFilters,
 } = require('../../../../packages/contracts');
 
+function buildDefaultHeaders(extraHeaders = {}) {
+    return {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'Referrer-Policy': 'same-origin',
+        ...extraHeaders,
+    };
+}
+
 function respondJson(res, statusCode, payload) {
-    res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.writeHead(statusCode, buildDefaultHeaders({
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'no-store',
+    }));
     res.end(JSON.stringify(payload));
+}
+
+function respondText(res, statusCode, payload) {
+    res.writeHead(statusCode, buildDefaultHeaders({
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-store',
+    }));
+    res.end(String(payload ?? ''));
+}
+
+function redirect(res, location) {
+    res.writeHead(302, buildDefaultHeaders({
+        Location: location,
+        'Cache-Control': 'no-store',
+    }));
+    res.end();
 }
 
 function renderHtmlTemplate(template, versionLabel) {
@@ -59,11 +87,17 @@ async function readFirstAvailablePage(candidates) {
 async function serveHtmlPage(res, candidates, versionLabel) {
     try {
         const page = await readFirstAvailablePage(candidates);
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.writeHead(200, buildDefaultHeaders({
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-store',
+        }));
         res.end(renderHtmlTemplate(page.template, versionLabel));
     } catch (error) {
         const fileName = candidates[0]?.fileName || 'page';
-        res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.writeHead(500, buildDefaultHeaders({
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Cache-Control': 'no-store',
+        }));
         res.end(`Error loading ${fileName}`);
     }
 }
@@ -123,7 +157,10 @@ function getSettingsStatusCode(errorCode) {
 }
 
 function createHttpRequestHandler({
+    auditLogStore,
     config,
+    errorMonitor,
+    logger,
     roomRegistry,
     estimationHistoryStore,
     saasFoundationService,
@@ -152,20 +189,17 @@ function createHttpRequestHandler({
             }
 
             if (pathname === HTTP_ROUTES.history) {
-                res.writeHead(302, { Location: HTTP_ROUTES.historyPage });
-                res.end();
+                redirect(res, HTTP_ROUTES.historyPage);
                 return;
             }
 
             if (pathname === HTTP_ROUTES.homeHtml && config.frontend.mode === 'react') {
-                res.writeHead(302, { Location: HTTP_ROUTES.home });
-                res.end();
+                redirect(res, HTTP_ROUTES.home);
                 return;
             }
 
             if (pathname === HTTP_ROUTES.historyHtml && config.frontend.mode === 'react') {
-                res.writeHead(302, { Location: HTTP_ROUTES.historyPage });
-                res.end();
+                redirect(res, HTTP_ROUTES.historyPage);
                 return;
             }
 
@@ -186,6 +220,16 @@ function createHttpRequestHandler({
                     );
                 } catch (error) {
                     const errorCode = getErrorCode(error, ERROR_CODES.settingsReadFailed);
+                    logger.warn('http.settings_bootstrap.denied', {
+                        errorCode,
+                        path: pathname,
+                    });
+                    if (errorCode === ERROR_CODES.settingsReadFailed) {
+                        errorMonitor.capture(error, {
+                            event: 'http.settings_bootstrap.failed',
+                            path: pathname,
+                        });
+                    }
                     respondJson(res, getSettingsStatusCode(errorCode), {
                         error: errorCode,
                     });
@@ -195,20 +239,17 @@ function createHttpRequestHandler({
 
             if (pathname === HTTP_ROUTES.settings) {
                 if (config.frontend.mode === 'react') {
-                    res.writeHead(302, { Location: HTTP_ROUTES.settingsPage });
-                    res.end();
+                    redirect(res, HTTP_ROUTES.settingsPage);
                     return;
                 }
 
-                res.writeHead(404);
-                res.end('Not found');
+                respondText(res, 404, 'Not found');
                 return;
             }
 
             if (pathname === HTTP_ROUTES.settingsPage) {
                 if (config.frontend.mode !== 'react') {
-                    res.writeHead(404);
-                    res.end('Not found');
+                    respondText(res, 404, 'Not found');
                     return;
                 }
 
@@ -232,6 +273,10 @@ function createHttpRequestHandler({
                         },
                     }));
                 } catch (error) {
+                    errorMonitor.capture(error, {
+                        event: 'http.estimation_history.failed',
+                        path: pathname,
+                    });
                     respondJson(res, 500, {
                         error: getErrorCode(error, ERROR_CODES.historyReadFailed),
                     });
@@ -247,10 +292,7 @@ function createHttpRequestHandler({
             if (roomIdFromPath && roomRegistry.isValidRoomId(roomIdFromPath)) {
                 if (!pathname.endsWith('/')) {
                     const normalizedRoomId = roomRegistry.getPublicRoom(roomIdFromPath).id;
-                    res.writeHead(302, {
-                        Location: `/${encodeURIComponent(normalizedRoomId)}/`,
-                    });
-                    res.end();
+                    redirect(res, `/${encodeURIComponent(normalizedRoomId)}/`);
                     return;
                 }
 
@@ -258,9 +300,12 @@ function createHttpRequestHandler({
                 return;
             }
 
-            res.writeHead(404);
-            res.end('Not found');
+            respondText(res, 404, 'Not found');
         } catch (error) {
+            errorMonitor.capture(error, {
+                event: 'http.request.failed',
+                path: req.url || '/',
+            });
             respondJson(res, 500, {
                 error: getErrorCode(error, ERROR_CODES.internalServerError),
             });

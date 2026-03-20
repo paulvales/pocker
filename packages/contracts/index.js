@@ -59,6 +59,7 @@ const ERROR_CODES = Object.freeze({
   youTrackNotConfigured: 'YOUTRACK_NOT_CONFIGURED',
   noVotes: 'NO_VOTES',
   issueNotFoundInNote: 'ISSUE_NOT_FOUND_IN_NOTE',
+  rateLimited: 'RATE_LIMITED',
   ackTimeout: 'ACK_TIMEOUT',
   socketDisconnected: 'SOCKET_DISCONNECTED',
 });

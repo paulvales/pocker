@@ -48,6 +48,20 @@ function normalizeFrontendMode(value) {
     return value === 'legacy' ? 'legacy' : 'react';
 }
 
+function normalizeLogLevel(value) {
+    const normalizedValue = normalizeText(value).toLowerCase();
+    if (
+        normalizedValue === 'debug'
+        || normalizedValue === 'info'
+        || normalizedValue === 'warn'
+        || normalizedValue === 'error'
+    ) {
+        return normalizedValue;
+    }
+
+    return 'info';
+}
+
 function createServerConfig(options = {}) {
     const projectRoot = options.projectRoot || path.resolve(__dirname, '../../../../');
     const version = normalizeText(options.version ?? process.env.APP_VERSION ?? packageJson.version ?? 'dev');
@@ -65,6 +79,81 @@ function createServerConfig(options = {}) {
             legacyHomeFilePath: path.join(projectRoot, 'index.html'),
             legacyHistoryFilePath: path.join(projectRoot, 'history.html'),
             reactEntryFilePath: path.join(projectRoot, 'apps', 'web', 'dist', 'index.html'),
+        },
+        observability: {
+            serviceName: normalizeText(
+                options.serviceName
+                ?? process.env.POCKER_SERVICE_NAME
+                ?? 'pocker',
+            ),
+            logLevel: normalizeLogLevel(
+                options.logLevel
+                ?? process.env.POCKER_LOG_LEVEL,
+            ),
+        },
+        security: {
+            rateLimits: {
+                createRoom: {
+                    limit: normalizePositiveInteger(
+                        options.createRoomRateLimitLimit
+                        ?? process.env.POCKER_RATE_LIMIT_CREATE_ROOM,
+                        100,
+                    ),
+                    windowMs: normalizePositiveInteger(
+                        options.createRoomRateLimitWindowMs
+                        ?? process.env.POCKER_RATE_LIMIT_CREATE_ROOM_WINDOW_MS,
+                        60 * 1000,
+                    ),
+                },
+                join: {
+                    limit: normalizePositiveInteger(
+                        options.joinRateLimitLimit
+                        ?? process.env.POCKER_RATE_LIMIT_JOIN,
+                        200,
+                    ),
+                    windowMs: normalizePositiveInteger(
+                        options.joinRateLimitWindowMs
+                        ?? process.env.POCKER_RATE_LIMIT_JOIN_WINDOW_MS,
+                        60 * 1000,
+                    ),
+                },
+                mutation: {
+                    limit: normalizePositiveInteger(
+                        options.mutationRateLimitLimit
+                        ?? process.env.POCKER_RATE_LIMIT_MUTATION,
+                        300,
+                    ),
+                    windowMs: normalizePositiveInteger(
+                        options.mutationRateLimitWindowMs
+                        ?? process.env.POCKER_RATE_LIMIT_MUTATION_WINDOW_MS,
+                        60 * 1000,
+                    ),
+                },
+                vote: {
+                    limit: normalizePositiveInteger(
+                        options.voteRateLimitLimit
+                        ?? process.env.POCKER_RATE_LIMIT_VOTE,
+                        500,
+                    ),
+                    windowMs: normalizePositiveInteger(
+                        options.voteRateLimitWindowMs
+                        ?? process.env.POCKER_RATE_LIMIT_VOTE_WINDOW_MS,
+                        60 * 1000,
+                    ),
+                },
+                reaction: {
+                    limit: normalizePositiveInteger(
+                        options.reactionRateLimitLimit
+                        ?? process.env.POCKER_RATE_LIMIT_REACTION,
+                        300,
+                    ),
+                    windowMs: normalizePositiveInteger(
+                        options.reactionRateLimitWindowMs
+                        ?? process.env.POCKER_RATE_LIMIT_REACTION_WINDOW_MS,
+                        60 * 1000,
+                    ),
+                },
+            },
         },
         realtime: {
             sessionRecoveryTtlMs: normalizePositiveInteger(

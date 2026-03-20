@@ -35,6 +35,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   NO_VOTES: 'There are no votes to aggregate yet.',
   ISSUE_NOT_FOUND_IN_NOTE: 'The current note does not contain a trackable issue id.',
   YOUTRACK_NOT_CONFIGURED: 'YouTrack integration is not configured on the server.',
+  RATE_LIMITED: 'Too many requests were sent too quickly. Wait a moment and try again.',
 };
 
 function createRoomSessionError(
