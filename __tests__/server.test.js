@@ -15,14 +15,22 @@ const historyDb = newDb();
 const { Pool } = historyDb.adapters.createPg();
 const SOCKET_CLIENT_EVENTS = SOCKET_EVENT_NAMES.client;
 const SOCKET_SERVER_EVENTS = SOCKET_EVENT_NAMES.server;
-
-global.__POCKER_HISTORY_STORE_OPTIONS__ = {
+const TEST_DATABASE_URL = 'postgres://test:test@127.0.0.1:5432/pocker_test?sslmode=disable';
+const SHARED_HISTORY_STORE_OPTIONS = {
   PoolClass: Pool,
-  connectionString: 'postgres://test:test@127.0.0.1:5432/pocker_test?sslmode=disable',
+  connectionString: TEST_DATABASE_URL,
   skipLegacyDeduplication: true,
 };
+const SHARED_ROOM_RUNTIME_STORE_OPTIONS = {
+  PoolClass: Pool,
+  connectionString: TEST_DATABASE_URL,
+};
+
+global.__POCKER_HISTORY_STORE_OPTIONS__ = SHARED_HISTORY_STORE_OPTIONS;
+global.__POCKER_ROOM_RUNTIME_STORE_OPTIONS__ = SHARED_ROOM_RUNTIME_STORE_OPTIONS;
 const { createServerApp, estimationHistoryStore, io, server } = require('..');
 delete global.__POCKER_HISTORY_STORE_OPTIONS__;
+delete global.__POCKER_ROOM_RUNTIME_STORE_OPTIONS__;
 
 function request(port, pathname, options = {}) {
   return new Promise((resolve, reject) => {
@@ -102,6 +110,37 @@ function waitForEvent(client, eventName, predicate = () => true, timeoutMs = 200
     };
 
     client.on(eventName, handler);
+  });
+}
+
+async function startTestApp(options = {}) {
+  const app = createServerApp({
+    port: 0,
+    estimationHistoryStore,
+    roomRuntimeStoreOptions: SHARED_ROOM_RUNTIME_STORE_OPTIONS,
+    roomSyncPollIntervalMs: 250,
+    ...options,
+  });
+
+  await estimationHistoryStore.initialize();
+  await new Promise(resolve => {
+    app.server.listen(() => {
+      resolve();
+    });
+  });
+  return {
+    app,
+    port: app.server.address().port,
+  };
+}
+
+async function stopTestApp(app) {
+  app.io.close();
+  await new Promise(resolve => {
+    app.server.close(resolve);
+  });
+  await new Promise(resolve => {
+    setTimeout(resolve, 50);
   });
 }
 
@@ -202,6 +241,7 @@ describe('socket server', () => {
       port: 0,
       projectRoot: tempProjectRoot,
       estimationHistoryStore,
+      roomRuntimeStoreOptions: SHARED_ROOM_RUNTIME_STORE_OPTIONS,
     });
 
     let reactPort = 0;
@@ -251,6 +291,7 @@ describe('socket server', () => {
       port: 0,
       projectRoot: tempProjectRoot,
       estimationHistoryStore,
+      roomRuntimeStoreOptions: SHARED_ROOM_RUNTIME_STORE_OPTIONS,
     });
 
     let reactPort = 0;
@@ -363,6 +404,7 @@ describe('socket server', () => {
     const restrictedApp = createServerApp({
       port: 0,
       estimationHistoryStore,
+      roomRuntimeStoreOptions: SHARED_ROOM_RUNTIME_STORE_OPTIONS,
       saasGuestAdminMode: 'member_only',
     });
 
@@ -383,9 +425,10 @@ describe('socket server', () => {
           actorKind: 'guest',
         },
       });
+      const roomSuffix = `member-admin-room-${Date.now()}`;
 
       try {
-        const createResult = await createRoom(memberClient, 'member-admin-room');
+        const createResult = await createRoom(memberClient, roomSuffix);
         const roomId = createResult.room.id;
 
         await joinRoom(memberClient, {
@@ -1328,6 +1371,182 @@ describe('socket server', () => {
     } finally {
       adminClient.close();
       viewerClient.close();
+    }
+  });
+
+  test('persists durable room state across app restart on the shared runtime store', async () => {
+    const firstInstance = await startTestApp();
+    const creator = await connectClient(firstInstance.port);
+    const roomSuffix = `durable-room-${Date.now()}`;
+
+    try {
+      const createResult = await createRoom(creator, roomSuffix);
+      const roomId = createResult.room.id;
+
+      await expect(joinRoom(creator, {
+        roomId,
+        name: 'Admin',
+        isAdmin: true,
+      })).resolves.toEqual(expect.objectContaining({
+        ok: true,
+        room: expect.objectContaining({ id: roomId }),
+      }));
+
+      await expect(emitWithAck(creator, SOCKET_CLIENT_EVENTS.taskListUpdate, {
+        roomId,
+        items: ['https://tracker.example/APP-2301'],
+      })).resolves.toEqual({
+        ok: true,
+        taskState: {
+          items: ['https://tracker.example/APP-2301'],
+          selectedIndex: 0,
+        },
+        estimationMode: 'points',
+      });
+
+      await expect(emitWithAck(creator, SOCKET_CLIENT_EVENTS.setEstimationMode, {
+        roomId,
+        mode: 'hours',
+      })).resolves.toEqual({
+        ok: true,
+        estimationMode: 'hours',
+      });
+
+      await expect(emitWithAck(creator, SOCKET_CLIENT_EVENTS.noteUpdate, {
+        roomId,
+        note: 'APP-2301 durable note',
+      })).resolves.toEqual({ ok: true });
+
+      creator.close();
+      await new Promise(resolve => {
+        setTimeout(resolve, 100);
+      });
+      await stopTestApp(firstInstance.app);
+
+      const secondInstance = await startTestApp();
+      const viewer = await connectClient(secondInstance.port);
+
+      try {
+        const joinState = await joinRoom(viewer, {
+          roomId,
+          name: 'Viewer',
+        });
+
+        expect(joinState).toEqual(expect.objectContaining({
+          ok: true,
+          note: 'APP-2301 durable note',
+          revealed: false,
+          estimationMode: 'hours',
+          taskState: {
+            items: ['https://tracker.example/APP-2301'],
+            selectedIndex: 0,
+          },
+        }));
+      } finally {
+        viewer.close();
+        await stopTestApp(secondInstance.app);
+      }
+    } finally {
+      creator.close();
+      if (firstInstance?.app?.server?.listening) {
+        await stopTestApp(firstInstance.app);
+      }
+    }
+  });
+
+  test('keeps the admin seat reserved during recovery and restores it for the same participant', async () => {
+    const adminClient = await connectClient(port);
+    const observerClient = await connectClient(port);
+    const recoveringClient = await connectClient(port);
+    const roomSuffix = `recovery-room-${Date.now()}`;
+
+    try {
+      const createResult = await createRoom(adminClient, roomSuffix);
+      const roomId = createResult.room.id;
+
+      await expect(joinRoom(adminClient, {
+        roomId,
+        name: 'Admin',
+        isAdmin: true,
+      })).resolves.toEqual(expect.objectContaining({
+        ok: true,
+        room: expect.objectContaining({ id: roomId }),
+      }));
+
+      adminClient.close();
+      await new Promise(resolve => {
+        setTimeout(resolve, 100);
+      });
+
+      await expect(
+        emitWithAck(observerClient, SOCKET_CLIENT_EVENTS.requestAdminStatus, roomId),
+      ).resolves.toBe(false);
+
+      const recoveryState = await joinRoom(recoveringClient, {
+        roomId,
+        name: 'Admin',
+        isAdmin: true,
+      });
+
+      expect(recoveryState).toEqual(expect.objectContaining({
+        ok: true,
+        players: [
+          expect.objectContaining({
+            name: 'Admin',
+            isAdmin: true,
+          }),
+        ],
+      }));
+    } finally {
+      adminClient.close();
+      observerClient.close();
+      recoveringClient.close();
+    }
+  });
+
+  test('propagates durable room updates across instances through the shared runtime event log', async () => {
+    const firstInstance = await startTestApp();
+    const secondInstance = await startTestApp();
+    const creator = await connectClient(firstInstance.port);
+    const viewer = await connectClient(secondInstance.port);
+    const roomSuffix = `sync-room-${Date.now()}`;
+
+    try {
+      const createResult = await createRoom(creator, roomSuffix);
+      const roomId = createResult.room.id;
+
+      await joinRoom(creator, {
+        roomId,
+        name: 'Creator',
+        isAdmin: true,
+      });
+
+      await expect(joinRoom(viewer, {
+        roomId,
+        name: 'Viewer',
+      })).resolves.toEqual(expect.objectContaining({
+        ok: true,
+        room: expect.objectContaining({ id: roomId }),
+      }));
+
+      const replicatedNote = waitForEvent(
+        viewer,
+        SOCKET_SERVER_EVENTS.noteUpdate,
+        note => note === 'cross-instance note',
+        4000,
+      );
+
+      await expect(emitWithAck(creator, SOCKET_CLIENT_EVENTS.noteUpdate, {
+        roomId,
+        note: 'cross-instance note',
+      })).resolves.toEqual({ ok: true });
+
+      await expect(replicatedNote).resolves.toBe('cross-instance note');
+    } finally {
+      creator.close();
+      viewer.close();
+      await stopTestApp(firstInstance.app);
+      await stopTestApp(secondInstance.app);
     }
   });
 });

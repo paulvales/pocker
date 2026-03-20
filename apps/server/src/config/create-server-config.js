@@ -66,6 +66,18 @@ function createServerConfig(options = {}) {
             legacyHistoryFilePath: path.join(projectRoot, 'history.html'),
             reactEntryFilePath: path.join(projectRoot, 'apps', 'web', 'dist', 'index.html'),
         },
+        realtime: {
+            sessionRecoveryTtlMs: normalizePositiveInteger(
+                options.roomSessionRecoveryTtlMs
+                ?? process.env.POCKER_ROOM_SESSION_RECOVERY_TTL_MS,
+                5 * 60 * 1000,
+            ),
+            syncPollIntervalMs: normalizePositiveInteger(
+                options.roomSyncPollIntervalMs
+                ?? process.env.POCKER_ROOM_SYNC_POLL_INTERVAL_MS,
+                750,
+            ),
+        },
         integrations: {
             youTrack: {
                 baseUrl: normalizeText(options.youTrackBaseUrl ?? process.env.YOUTRACK_BASE_URL).replace(/\/+$/, ''),

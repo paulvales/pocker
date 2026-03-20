@@ -2,6 +2,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const { createEstimationHistoryStore } = require('../../../../estimation-history-store');
 const { createRoomRegistry } = require('../../../../room-registry');
+const { createRoomRuntimeStore } = require('../../../../room-runtime-store');
 const { createServerConfig } = require('../config/create-server-config');
 const { createSaasFoundationService } = require('../domain/saas/create-saas-foundation-service');
 const { createHttpRequestHandler } = require('../http/create-http-request-handler');
@@ -9,7 +10,13 @@ const { registerRoomHandlers } = require('../socket/register-room-handlers');
 
 function createServerApp(options = {}) {
     const config = createServerConfig(options);
-    const roomRegistry = options.roomRegistry || createRoomRegistry();
+    const roomRuntimeStore = options.roomRuntimeStore
+        || createRoomRuntimeStore(options.roomRuntimeStoreOptions || {});
+    const roomRegistry = options.roomRegistry || createRoomRegistry({
+        roomRuntimeStore,
+        sessionRecoveryTtlMs: config.realtime.sessionRecoveryTtlMs,
+        syncPollIntervalMs: config.realtime.syncPollIntervalMs,
+    });
     const saasFoundationService = options.saasFoundationService
         || createSaasFoundationService({ config });
     const estimationHistoryStore = options.estimationHistoryStore
@@ -28,6 +35,9 @@ function createServerApp(options = {}) {
             origin: '*',
         },
     });
+    server.on('close', () => {
+        void roomRegistry.close().catch(() => {});
+    });
 
     registerRoomHandlers({
         io,
@@ -39,6 +49,7 @@ function createServerApp(options = {}) {
 
     async function start() {
         await estimationHistoryStore.initialize();
+        await roomRegistry.initialize();
 
         return new Promise((resolve, reject) => {
             server.once('error', reject);
@@ -54,6 +65,7 @@ function createServerApp(options = {}) {
         estimationHistoryStore,
         io,
         roomRegistry,
+        roomRuntimeStore,
         saasFoundationService,
         server,
         start,

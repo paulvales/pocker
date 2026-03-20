@@ -6,6 +6,7 @@ const { createServerApp, normalizeEstimationMode } = require('./apps/server');
 
 const app = createServerApp({
     historyStoreOptions: global.__POCKER_HISTORY_STORE_OPTIONS__ || {},
+    roomRuntimeStoreOptions: global.__POCKER_ROOM_RUNTIME_STORE_OPTIONS__ || {},
 });
 
 if (require.main === module) {
