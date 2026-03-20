@@ -1,8 +1,13 @@
+if (!process.env.JEST_WORKER_ID) {
+    require('dotenv').config();
+}
+
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
 const packageJson = require('./package.json');
+const { createEstimationHistoryStore } = require('./estimation-history-store');
 const {
     createRoomRegistry,
     normalizeEstimationMode,
@@ -16,13 +21,15 @@ const YOU_TRACK_BASE_URL = (process.env.YOUTRACK_BASE_URL || '').replace(/\/+$/,
 const YOU_TRACK_TOKEN = process.env.YOUTRACK_TOKEN || '';
 const YOU_TRACK_STORY_POINTS_FIELD = process.env.YOUTRACK_STORY_POINTS_FIELD || 'Story points';
 const roomRegistry = createRoomRegistry();
+const historyStoreOptions = global.__POCKER_HISTORY_STORE_OPTIONS__ || {};
+const estimationHistoryStore = createEstimationHistoryStore(historyStoreOptions);
 
 function respondJson(res, statusCode, payload) {
     res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify(payload));
 }
 
-function renderIndexHtml(template) {
+function renderHtmlTemplate(template) {
     return template.replace(/__APP_VERSION__/g, APP_VERSION_LABEL);
 }
 
@@ -41,17 +48,17 @@ function extractRoomIdFromPathname(pathname) {
     }
 }
 
-function serveIndexHtml(res) {
-    const filePath = path.join(__dirname, 'index.html');
+function serveHtmlFile(res, fileName) {
+    const filePath = path.join(__dirname, fileName);
     fs.readFile(filePath, (err, data) => {
         if (err) {
-            res.writeHead(500);
-            res.end('Error loading index.html');
+            res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+            res.end(`Error loading ${fileName}`);
             return;
         }
 
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(renderIndexHtml(data.toString('utf8')));
+        res.end(renderHtmlTemplate(data.toString('utf8')));
     });
 }
 
@@ -86,6 +93,52 @@ function extractIssueIdReadableFromNote(note) {
     return match ? match[1].toUpperCase() : null;
 }
 
+function getCurrentTaskReference(roomState) {
+    const taskState = normalizeTaskState(roomState?.taskState);
+    return taskState.items[taskState.selectedIndex]
+        || String(roomState?.note || '').trim()
+        || '';
+}
+
+function getHistoryTaskId(roomState) {
+    const currentTaskReference = String(getCurrentTaskReference(roomState) || '').trim();
+    return extractIssueIdReadableFromNote(currentTaskReference) || currentTaskReference;
+}
+
+function buildHistoryEntries(roomState) {
+    const recordedAt = new Date().toISOString();
+    const roomId = String(roomState?.room?.id || '').trim();
+    const taskId = getHistoryTaskId(roomState);
+    const estimateType = normalizeEstimationMode(roomState?.estimationMode);
+
+    return Object.values(roomState?.players || {})
+        .filter(player => player && player.vote !== null && typeof player.vote !== 'undefined')
+        .map(player => ({
+            roomId,
+            taskId,
+            participantName: player.name,
+            estimate: String(player.vote),
+            estimateType,
+            recordedAt,
+        }));
+}
+
+function getHistoryFilters(searchParams) {
+    const parsedPage = Number.parseInt(String(searchParams.get('page') || ''), 10);
+    const parsedPageSize = Number.parseInt(String(searchParams.get('pageSize') || ''), 10);
+
+    return {
+        roomId: String(searchParams.get('roomId') || '').trim(),
+        taskId: String(searchParams.get('taskId') || '').trim(),
+        participantName: String(searchParams.get('participantName') || '').trim(),
+        estimate: String(searchParams.get('estimate') || '').trim(),
+        estimateType: String(searchParams.get('estimateType') || '').trim(),
+        recordedOn: String(searchParams.get('recordedOn') || '').trim(),
+        page: Number.isFinite(parsedPage) ? parsedPage : 1,
+        pageSize: Number.isFinite(parsedPageSize) ? parsedPageSize : 25,
+    };
+}
+
 async function setStoryPointsInYouTrack(issueIdReadable, storyPoints) {
     const response = await fetch(`${YOU_TRACK_BASE_URL}/api/commands`, {
         method: 'POST',
@@ -102,49 +155,89 @@ async function setStoryPointsInYouTrack(issueIdReadable, storyPoints) {
 }
 
 const server = http.createServer((req, res) => {
-    const requestUrl = new URL(req.url || '/', 'http://localhost');
-    const { pathname } = requestUrl;
-    const roomIdFromPath = extractRoomIdFromPathname(pathname);
+    void (async () => {
+        const requestUrl = new URL(req.url || '/', 'http://localhost');
+        const { pathname } = requestUrl;
+        const roomIdFromPath = extractRoomIdFromPathname(pathname);
 
-    if (pathname === '/health') {
-        respondJson(res, 200, {
-            status: 'ok',
-            version: APP_VERSION,
-            build: APP_BUILD || null,
-        });
-        return;
-    }
-
-    if (pathname === '/version') {
-        respondJson(res, 200, {
-            version: APP_VERSION,
-            build: APP_BUILD || null,
-            label: APP_VERSION_LABEL,
-        });
-        return;
-    }
-
-    if (pathname === '/' || pathname === '/index.html') {
-        serveIndexHtml(res);
-        return;
-    }
-
-    if (roomIdFromPath && roomRegistry.isValidRoomId(roomIdFromPath)) {
-        if (!pathname.endsWith('/')) {
-            const normalizedRoomId = roomRegistry.getPublicRoom(roomIdFromPath).id;
-            res.writeHead(302, {
-                Location: `/${encodeURIComponent(normalizedRoomId)}/`,
+        if (pathname === '/health') {
+            respondJson(res, 200, {
+                status: 'ok',
+                version: APP_VERSION,
+                build: APP_BUILD || null,
             });
+            return;
+        }
+
+        if (pathname === '/version') {
+            respondJson(res, 200, {
+                version: APP_VERSION,
+                build: APP_BUILD || null,
+                label: APP_VERSION_LABEL,
+            });
+            return;
+        }
+
+        if (pathname === '/history') {
+            res.writeHead(302, { Location: '/history/' });
             res.end();
             return;
         }
 
-        serveIndexHtml(res);
-        return;
-    }
+        if (pathname === '/history/' || pathname === '/history.html') {
+            serveHtmlFile(res, 'history.html');
+            return;
+        }
 
-    res.writeHead(404);
-    res.end('Not found');
+        if (pathname === '/api/estimation-history') {
+            try {
+                const filters = getHistoryFilters(requestUrl.searchParams);
+                const [historyResult, meta] = await Promise.all([
+                    estimationHistoryStore.list(filters),
+                    estimationHistoryStore.listMeta(),
+                ]);
+
+                respondJson(res, 200, {
+                    items: historyResult.items,
+                    meta: {
+                        ...meta,
+                        pagination: historyResult.pagination,
+                    },
+                });
+            } catch (error) {
+                respondJson(res, 500, {
+                    error: error.message || 'HISTORY_READ_FAILED',
+                });
+            }
+            return;
+        }
+
+        if (pathname === '/' || pathname === '/index.html') {
+            serveHtmlFile(res, 'index.html');
+            return;
+        }
+
+        if (roomIdFromPath && roomRegistry.isValidRoomId(roomIdFromPath)) {
+            if (!pathname.endsWith('/')) {
+                const normalizedRoomId = roomRegistry.getPublicRoom(roomIdFromPath).id;
+                res.writeHead(302, {
+                    Location: `/${encodeURIComponent(normalizedRoomId)}/`,
+                });
+                res.end();
+                return;
+            }
+
+            serveHtmlFile(res, 'index.html');
+            return;
+        }
+
+        res.writeHead(404);
+        res.end('Not found');
+    })().catch(error => {
+        respondJson(res, 500, {
+            error: error.message || 'INTERNAL_SERVER_ERROR',
+        });
+    });
 });
 
 const io = new Server(server, {
@@ -152,6 +245,8 @@ const io = new Server(server, {
         origin: '*',
     },
 });
+const REACTION_TTL_MS = 3000;
+const reactionClearTimers = new Map();
 
 function emitPlayersUpdate(roomId) {
     const snapshot = roomRegistry.getSnapshot(roomId);
@@ -159,10 +254,42 @@ function emitPlayersUpdate(roomId) {
     return snapshot;
 }
 
+function getReactionTimerKey(roomId, socketId) {
+    return `${roomId}:${socketId}`;
+}
+
+function clearReactionTimer(roomId, socketId) {
+    const timerKey = getReactionTimerKey(roomId, socketId);
+    const timer = reactionClearTimers.get(timerKey);
+    if (timer) {
+        clearTimeout(timer);
+        reactionClearTimers.delete(timerKey);
+    }
+}
+
+function scheduleReactionClear(roomId, socketId) {
+    clearReactionTimer(roomId, socketId);
+    const timerKey = getReactionTimerKey(roomId, socketId);
+    const timer = setTimeout(() => {
+        reactionClearTimers.delete(timerKey);
+
+        try {
+            const players = roomRegistry.recordReaction(roomId, socketId, null);
+            io.to(roomId).emit('reactions_update', players);
+        } catch (error) {
+            // ignore cleanup for sockets that already left the room
+        }
+    }, REACTION_TTL_MS);
+
+    reactionClearTimers.set(timerKey, timer);
+}
+
 function removeSocketFromRoom(socket, { roomId = socket.data.currentRoomId, emitLeaveEvent = true } = {}) {
     if (!roomId) {
         return null;
     }
+
+    clearReactionTimer(roomId, socket.id);
 
     const leaveResult = roomRegistry.leaveRoom({
         roomId,
@@ -342,9 +469,45 @@ io.on('connection', socket => {
         }
     });
 
-    socket.on('reveal', roomId => {
+    socket.on('set_reaction', ({ roomId, value } = {}, callback) => {
+        const respond = typeof callback === 'function' ? callback : () => {};
+
         try {
-            roomRegistry.assertMembership(roomId, socket.id, { requireAdmin: true });
+            roomRegistry.assertMembership(roomId, socket.id);
+            const players = roomRegistry.recordReaction(roomId, socket.id, value);
+            const currentPlayer = players.find(player => player.id === socket.id);
+            if (currentPlayer?.reaction) {
+                scheduleReactionClear(roomId, socket.id);
+            } else {
+                clearReactionTimer(roomId, socket.id);
+            }
+            io.to(roomId).emit('reactions_update', players);
+            respond({
+                ok: true,
+                reaction: currentPlayer ? currentPlayer.reaction : null,
+            });
+        } catch (error) {
+            respond({
+                ok: false,
+                error: error.message || 'UNKNOWN_ERROR',
+            });
+        }
+    });
+
+    socket.on('reveal', async roomId => {
+        try {
+            const membership = roomRegistry.assertMembership(roomId, socket.id, { requireAdmin: true });
+            const shouldRecordHistory = !membership.roomState.revealed;
+            const historyEntries = shouldRecordHistory ? buildHistoryEntries(membership.roomState) : [];
+
+            if (shouldRecordHistory && historyEntries.length) {
+                try {
+                    await estimationHistoryStore.append(historyEntries);
+                } catch (error) {
+                    console.error('Failed to persist estimation history', error);
+                }
+            }
+
             const revealed = roomRegistry.revealVotes(roomId);
             io.to(roomId).emit('reveal_update', revealed);
         } catch (error) {
@@ -429,12 +592,20 @@ io.on('connection', socket => {
 
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
-    server.listen(PORT, '0.0.0.0', () => {
-        console.log(`Socket.IO server running on port ${PORT}`);
-    });
+    estimationHistoryStore.initialize()
+        .then(() => {
+            server.listen(PORT, '0.0.0.0', () => {
+                console.log(`Socket.IO server running on port ${PORT}`);
+            });
+        })
+        .catch(error => {
+            console.error('Failed to initialize estimation history store', error);
+            process.exit(1);
+        });
 }
 
 module.exports = {
+    estimationHistoryStore,
     io,
     server,
     roomRegistry,

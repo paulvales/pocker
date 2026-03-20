@@ -89,6 +89,183 @@
             border: 1px solid #e0e1e2 !important;
         }
 
+        .player-card {
+            position: relative !important;
+            overflow: hidden;
+            min-height: 10.75rem;
+        }
+
+        .player-card-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: .6rem;
+            min-height: 100%;
+        }
+
+        .player-card-body {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 6.4rem;
+        }
+
+        .player-reaction {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(4.6rem, 12vw, 6.6rem);
+            line-height: 1;
+            pointer-events: none;
+            filter: drop-shadow(0 .35rem .9rem rgba(0, 0, 0, .18));
+            transform: translate(-50%, -56%) scale(.92);
+            z-index: 2;
+        }
+
+        .player-card.has-reaction .player-reaction {
+            display: flex;
+        }
+
+        .player-card.has-reaction .selectedPoint {
+            opacity: 0;
+            transform: scale(.78);
+        }
+
+        .player-name {
+            position: relative;
+            z-index: 3;
+            margin-top: auto;
+        }
+
+        .player-reaction.is-animating {
+            animation: reaction-burst .45s cubic-bezier(.2, .9, .2, 1);
+        }
+
+        .reaction-dock {
+            position: fixed;
+            left: 1rem;
+            bottom: 1rem;
+            z-index: 1200;
+            display: none;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: .6rem;
+        }
+
+        .reaction-picker {
+            display: flex;
+            align-items: center;
+            gap: .45rem;
+            padding: .45rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .98);
+            border: 1px solid rgba(34, 36, 38, .12);
+            box-shadow: 0 1rem 2.4rem rgba(17, 24, 39, .14);
+            transform-origin: left bottom;
+            transform: translateY(.55rem) scale(.82);
+            opacity: 0;
+            pointer-events: none;
+            transition: transform .18s ease, opacity .18s ease;
+        }
+
+        .reaction-picker.open {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .reaction-option {
+            width: 2.7rem;
+            height: 2.7rem;
+            border: none;
+            border-radius: 999px;
+            background: transparent;
+            font-size: 1.55rem;
+            line-height: 1;
+            cursor: pointer;
+            transition: transform .16s ease, background-color .16s ease, box-shadow .16s ease;
+        }
+
+        .reaction-option:hover,
+        .reaction-option:focus-visible {
+            background: rgba(33, 133, 208, .1);
+            transform: translateY(-.12rem) scale(1.08);
+            outline: none;
+        }
+
+        .reaction-option.active {
+            background: rgba(33, 133, 208, .14);
+            box-shadow: inset 0 0 0 1px rgba(33, 133, 208, .28);
+        }
+
+        .reaction-option:disabled {
+            opacity: .55;
+            cursor: default;
+            transform: none;
+        }
+
+        .reaction-trigger {
+            width: 3.35rem;
+            height: 3.35rem;
+            border: none;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #1f7ae0, #53b8ff);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 .8rem 1.8rem rgba(33, 133, 208, .28);
+            transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
+        }
+
+        .reaction-trigger:hover,
+        .reaction-trigger:focus-visible {
+            transform: translateY(-.08rem) scale(1.03);
+            box-shadow: 0 1rem 2.2rem rgba(33, 133, 208, .32);
+            outline: none;
+        }
+
+        .reaction-trigger.has-reaction {
+            background: linear-gradient(135deg, #f59e0b, #f97316);
+        }
+
+        .reaction-trigger.open {
+            transform: translateY(-.08rem) scale(1.04);
+        }
+
+        .reaction-trigger:disabled {
+            opacity: .6;
+            cursor: default;
+            transform: none;
+        }
+
+        .reaction-trigger-emoji {
+            font-size: 1.55rem;
+            line-height: 1;
+        }
+
+        @keyframes reaction-burst {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -56%) scale(.22);
+            }
+            58% {
+                opacity: 1;
+                transform: translate(-50%, -56%) scale(1.18);
+            }
+            100% {
+                opacity: 1;
+                transform: translate(-50%, -56%) scale(.92);
+            }
+        }
+
         .card.gradient-1 {
             background: linear-gradient(135deg, #667eea, #764ba2) !important;
             color: white !important;
@@ -163,6 +340,7 @@
             font-size: 3em;
             text-align: center;
             font-weight: bold;
+            transition: opacity .18s ease, transform .18s ease;
         }
 
         #noteDisplay {
@@ -880,6 +1058,12 @@
             </button>
         </div>
         <div class="item">
+            <button class="ui button" id="historyTopBtn" style="display:none;">
+                <i class="history icon"></i>
+                История
+            </button>
+        </div>
+        <div class="item">
             <button class="ui  right labeled icon button" id="changeNameBtn" style="display:none;">
                 <span class="session-badge-value" id="sessionUserName"></span>
                 <i class="close icon"></i>
@@ -1045,6 +1229,13 @@
         </div>
 
     </div>
+    <div class="reaction-dock" id="reactionDock" style="display:none;">
+        <div class="reaction-picker" id="reactionPicker"></div>
+        <button type="button" class="reaction-trigger" id="reactionTrigger" aria-expanded="false"
+                aria-label="Выбрать реакцию">
+            <span class="reaction-trigger-emoji" id="reactionTriggerEmoji">😊</span>
+        </button>
+    </div>
 
     <div class="httpsNotice">
         <span>v __APP_VERSION__</span>
@@ -1086,6 +1277,17 @@
         let revealed = false;
         let isAdmin = false;
         const VOTE_TTL_MS = 60 * 60 * 1000; // 1 час
+        const availableReactions = [
+            {value: '👍', label: 'Нравится'},
+            {value: '🔥', label: 'Огонь'},
+            {value: '❤️', label: 'Сердце'},
+            {value: '😂', label: 'Смешно'},
+            {value: '👏', label: 'Аплодисменты'},
+            {value: '👀', label: 'Смотрю'},
+            {value: '🤯', label: 'Взрыв мозга'}
+        ];
+        let reactionPickerOpen = false;
+        let currentReactionValue = null;
 
         socket.on('connect', () => {
             mySocketId = socket.id;
@@ -1110,7 +1312,7 @@
             return `pokerVote:${roomId}:${nm}`;
         }
 
-        function setVoteWithTTL(key, value) {
+        function setStoredValueWithTTL(key, value) {
             const payload = {
                 value,
                 expires: Date.now() + VOTE_TTL_MS
@@ -1118,7 +1320,7 @@
             localStorage.setItem(key, JSON.stringify(payload));
         }
 
-        function getVoteWithTTL(key) {
+        function getStoredValueWithTTL(key) {
             const raw = localStorage.getItem(key);
             if (!raw) return null;
 
@@ -1227,6 +1429,7 @@
                 .attr('title', hasRoom ? shareLink : '');
             $('#copyRoomLinkBtn').prop('disabled', !hasRoom);
             $('#copyRoomLinkTopBtn').toggle(Boolean(name) && hasRoom);
+            $('#historyTopBtn').toggle(Boolean(name) && hasRoom);
 
             if (!hasRoom) {
                 $('#roomHelpText').text('Введите slug комнаты. Он и станет адресом вида /slug/.');
@@ -1276,6 +1479,18 @@
                     message: 'Не удалось скопировать ссылку'
                 });
             }
+        }
+
+        function getHistoryPageUrl() {
+            if (apiBaseUrl) {
+                return `${apiBaseUrl}/history/`;
+            }
+
+            return `${window.location.origin}/history/`;
+        }
+
+        function openHistoryPage() {
+            window.open(getHistoryPageUrl(), '_blank', 'noopener');
         }
 
         const TASK_WHEEL_ITEM_HEIGHT = 40;
@@ -1369,13 +1584,19 @@
             $('#averageVote .label').text(estimationMode === 'hours' ? 'Средняя оценка в часах' : 'Средняя оценка в поинтах');
         }
 
-        function setAverageVoteDisplay(value = '0') {
+        function setAverageVoteDisplay(value = '0', { updateVisible = true } = {}) {
             const safeValue = String(value ?? '0');
+            const $hidden = $('#averageVote1');
             const $value = $('#averageVote .value');
-            const changed = $('#averageVote1').val() !== safeValue || $value.text() !== safeValue;
-            $('#averageVote1').val(safeValue);
-            $value.text(safeValue);
-            return changed;
+            const hiddenChanged = $hidden.val() !== safeValue;
+            const visibleChanged = $value.text() !== safeValue;
+
+            $hidden.val(safeValue);
+            if (updateVisible) {
+                $value.text(safeValue);
+            }
+
+            return hiddenChanged || (updateVisible && visibleChanged);
         }
 
         function animateAverageVoteDisplay() {
@@ -1615,7 +1836,7 @@
             applyRoomState(result);
 
             // Re-apply saved vote after join (for page reloads)
-            const savedVote = getVoteWithTTL(getVoteKey());
+            const savedVote = getStoredValueWithTTL(getVoteKey());
             if (savedVote) {
                 socket.emit('vote', {roomId, value: savedVote});
             }
@@ -1658,6 +1879,7 @@
 
             renderRoomSelectionMeta();
             $('#copyRoomLinkBtn, #copyRoomLinkTopBtn').click(copyRoomLink);
+            $('#historyTopBtn').click(openHistoryPage);
 
             if (roomFromUrl) {
                 const roomMeta = buildRoomMeta(roomFromUrl);
@@ -1885,6 +2107,100 @@
 
         const gradientClasses = ['gradient-1', 'gradient-2', 'gradient-3', 'gradient-4', 'gradient-5'];
 
+        function mapReactionError(errorCode) {
+            if (errorCode === 'FORBIDDEN') return 'Сначала подключитесь к комнате';
+            if (errorCode === 'REACTION_INVALID') return 'Такая реакция недоступна';
+            if (errorCode === 'ACK_TIMEOUT') return 'Сервер не ответил на обновление реакции';
+            if (errorCode === 'SOCKET_DISCONNECTED') return 'Нет подключения к серверу';
+            return `Ошибка реакции: ${errorCode || 'UNKNOWN_ERROR'}`;
+        }
+
+        function ensureReactionPickerButtons() {
+            const $picker = $('#reactionPicker');
+            if ($picker.children().length > 0) {
+                return;
+            }
+
+            availableReactions.forEach(reaction => {
+                const $button = $('<button type="button" class="reaction-option"></button>')
+                    .attr('data-reaction', reaction.value)
+                    .attr('aria-label', reaction.label)
+                    .attr('title', reaction.label)
+                    .text(reaction.value);
+
+                $button.on('click', async function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const nextReaction = $(this).attr('data-reaction');
+                    await submitReaction(nextReaction === currentReactionValue ? null : nextReaction);
+                });
+
+                $picker.append($button);
+            });
+        }
+
+        function setReactionPickerOpen(nextOpen) {
+            const canShow = Boolean(name && roomId);
+            reactionPickerOpen = canShow && Boolean(nextOpen);
+
+            $('#reactionDock').toggle(canShow);
+            $('#reactionPicker').toggleClass('open', reactionPickerOpen);
+            $('#reactionTrigger')
+                .toggleClass('open', reactionPickerOpen)
+                .attr('aria-expanded', reactionPickerOpen ? 'true' : 'false');
+        }
+
+        async function submitReaction(value) {
+            const $trigger = $('#reactionTrigger');
+            const $options = $('#reactionPicker .reaction-option');
+            $trigger.prop('disabled', true);
+            $options.prop('disabled', true);
+
+            const result = await emitWithAck('set_reaction', {roomId, value});
+
+            $trigger.prop('disabled', false);
+            $options.prop('disabled', false);
+
+            if (!result || !result.ok) {
+                $.toast({
+                    class: 'error',
+                    message: mapReactionError(result && result.error)
+                });
+                socket.emit('get_players', roomId);
+                return;
+            }
+
+            setReactionPickerOpen(false);
+        }
+
+        function renderReactionPicker(currentPlayer) {
+            if (!currentPlayer) {
+                currentReactionValue = null;
+                setReactionPickerOpen(false);
+                $('#reactionDock').hide();
+                return;
+            }
+
+            ensureReactionPickerButtons();
+            currentReactionValue = currentPlayer.reaction || null;
+            $('#reactionTriggerEmoji').text(currentReactionValue || '😊');
+            $('#reactionTrigger').toggleClass('has-reaction', Boolean(currentReactionValue));
+            $('#reactionPicker .reaction-option').each(function () {
+                const isActive = $(this).attr('data-reaction') === currentReactionValue;
+                $(this)
+                    .toggleClass('active', isActive)
+                    .attr('aria-pressed', isActive ? 'true' : 'false');
+            });
+            setReactionPickerOpen(reactionPickerOpen);
+        }
+
+        function triggerReactionAnimation($card) {
+            const $reaction = $card.find('.player-reaction');
+            $reaction.removeClass('is-animating');
+            void $reaction[0].offsetWidth;
+            $reaction.addClass('is-animating');
+        }
+
         function getGradientIndex(id, count) {
             let hash = 0;
             for (let i = 0; i < id.length; i++) {
@@ -1905,7 +2221,6 @@
                 } catch (e) {
                 }
             }
-
             if (current) {
                 $('#voteButtons').empty().hide();
                 const availableValues = estimationMode === 'hours' ? allEstimateValues : originalPoints;
@@ -1916,7 +2231,7 @@
                         socket.emit('vote', {roomId, value: p});
                         // Persist selection locally so it survives reloads
                         try {
-                            setVoteWithTTL(getVoteKey(), p);
+                            setStoredValueWithTTL(getVoteKey(), p);
                         } catch (e) {
                         }
                     });
@@ -1925,6 +2240,7 @@
                 });
                 $('#voteButtons').show();
             }
+            renderReactionPicker(current);
 
             const admin = players.find(p => p.isAdmin);
             $('#currentAdmin').text(admin ? `${admin.name}` : '---');
@@ -1939,6 +2255,7 @@
 
             players.forEach(player => {
                 const voted = Boolean(player.vote);
+                const hasReaction = Boolean(player.reaction);
                 const gradientIndex = getGradientIndex(player.id, gradientClasses.length);
                 const gradient = voted ? gradientClasses[gradientIndex] : null;
                 const existing = $players.find(`[data-id="${player.id}"]`);
@@ -1949,19 +2266,33 @@
                 let card;
                 if (existing.length) {
                     card = existing;
+                    const previousReaction = card.attr('data-reaction') || '';
+                    const reactionChanged = previousReaction !== (player.reaction || '');
                     card.find('.selectedPoint').text(point);
-                    card.find('.header').text(player.name);
+                    card.find('.player-name').text(player.name);
+                    card.find('.player-reaction').text(player.reaction || '');
                     card
                         .removeClass()
-                        .addClass(`ui raised link card ${voted ? gradient : 'default-card'}`)
+                        .addClass(`ui raised link card player-card ${voted ? gradient : 'default-card'}`)
+                        .toggleClass('has-reaction', hasReaction)
+                        .attr('data-reaction', player.reaction || '')
                         .attr('data-id', player.id);
+                    if (reactionChanged && player.reaction) {
+                        triggerReactionAnimation(card);
+                    }
                     $players.append(card); // reorder
                 } else {
-                    const item = $(`<div class="ui raised link card ${voted ? gradient : 'default-card'}" data-id="${player.id}"></div>`);
-                    const content = $('<div class="content flex-center"></div>');
+                    const item = $(`<div class="ui raised link card player-card ${voted ? gradient : 'default-card'}" data-id="${player.id}"></div>`);
+                    const body = $('<div class="player-card-body"></div>');
+                    const reactionEl = $(`<div class="player-reaction">${player.reaction || ''}</div>`);
+                    const content = $('<div class="content flex-center player-card-content"></div>');
                     const pointEl = $(`<div class="selectedPoint">${point}</div>`);
-                    const header = $(`<div class="mini header">${player.name}</div>`);
-                    content.append(pointEl).append(header);
+                    const header = $(`<div class="mini header player-name">${player.name}</div>`);
+                    item
+                        .toggleClass('has-reaction', hasReaction)
+                        .attr('data-reaction', player.reaction || '');
+                    body.append(pointEl).append(reactionEl);
+                    content.append(body).append(header);
                     item.append(content);
                     $players.append(item);
                 }
@@ -1981,10 +2312,14 @@
             });
 
             const roundedAvg = calcAvg(numericVotes);
-            if (revealed && numericVotes.length > 0) {
-                const averageChanged = setAverageVoteDisplay(roundedAvg);
-                if (averageChanged) {
-                    animateAverageVoteDisplay();
+            if (numericVotes.length > 0) {
+                if (revealed) {
+                    const averageChanged = setAverageVoteDisplay(roundedAvg);
+                    if (averageChanged) {
+                        animateAverageVoteDisplay();
+                    }
+                } else {
+                    setAverageVoteDisplay(roundedAvg, {updateVisible: false});
                 }
             } else {
                 setAverageVoteDisplay('0');
@@ -1994,6 +2329,7 @@
 
         socket.on('players_update', renderPlayers);
         socket.on('votes_update', renderPlayers);
+        socket.on('reactions_update', renderPlayers);
         socket.on('reveal_update', state => {
             revealed = state;
             socket.emit('get_players', roomId);
@@ -2029,6 +2365,28 @@
                 class: type,
                 message
             });
+        });
+
+        $('#reactionTrigger').on('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!roomId || !name) {
+                return;
+            }
+            ensureReactionPickerButtons();
+            setReactionPickerOpen(!reactionPickerOpen);
+        });
+
+        $(document).on('click', function (event) {
+            if (!$(event.target).closest('#reactionDock').length) {
+                setReactionPickerOpen(false);
+            }
+        });
+
+        $(document).on('keydown', function (event) {
+            if (event.key === 'Escape') {
+                setReactionPickerOpen(false);
+            }
         });
 
         function parseLinks(text) {

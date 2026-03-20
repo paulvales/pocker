@@ -1,7 +1,18 @@
-const { io, server } = require('..');
 const http = require('http');
+const { newDb } = require('pg-mem');
 const ioClient = require('socket.io-client');
 const packageJson = require('../package.json');
+
+const historyDb = newDb();
+const { Pool } = historyDb.adapters.createPg();
+
+global.__POCKER_HISTORY_STORE_OPTIONS__ = {
+  PoolClass: Pool,
+  connectionString: 'postgres://test:test@127.0.0.1:5432/pocker_test?sslmode=disable',
+  skipLegacyDeduplication: true,
+};
+const { estimationHistoryStore, io, server } = require('..');
+delete global.__POCKER_HISTORY_STORE_OPTIONS__;
 
 function request(port, pathname) {
   return new Promise((resolve, reject) => {
@@ -78,16 +89,22 @@ function waitForEvent(client, eventName, predicate = () => true, timeoutMs = 200
 describe('socket server', () => {
   let port;
 
-  beforeAll(done => {
-    server.listen(() => {
-      port = server.address().port;
-      done();
+  beforeAll(async () => {
+    await estimationHistoryStore.initialize();
+    await new Promise(resolve => {
+      server.listen(() => {
+        port = server.address().port;
+        resolve();
+      });
     });
   });
 
-  afterAll(done => {
+  afterAll(async () => {
     io.close();
-    server.close(done);
+    await new Promise(resolve => {
+      server.close(resolve);
+    });
+    await estimationHistoryStore.close();
   });
 
   test('exposes health and version info over http and serves room paths', async () => {
@@ -96,6 +113,8 @@ describe('socket server', () => {
     const home = await request(port, '/');
     const roomHome = await request(port, '/backend-sprint-42/');
     const roomRedirect = await request(port, '/backend-sprint-42');
+    const historyPage = await request(port, '/history/');
+    const historyApi = await request(port, '/api/estimation-history');
 
     expect(health.statusCode).toBe(200);
     expect(JSON.parse(health.body)).toEqual({
@@ -114,12 +133,35 @@ describe('socket server', () => {
     expect(home.statusCode).toBe(200);
     expect(home.body).toContain(`v ${packageJson.version}`);
     expect(home.body).not.toContain('__APP_VERSION__');
+    expect(home.body).toContain('id="historyTopBtn"');
 
     expect(roomHome.statusCode).toBe(200);
     expect(roomHome.body).toContain(`v ${packageJson.version}`);
 
     expect(roomRedirect.statusCode).toBe(302);
     expect(roomRedirect.headers.location).toBe('/backend-sprint-42/');
+
+    expect(historyPage.statusCode).toBe(200);
+    expect(historyPage.body).toContain('id="historyTable"');
+    expect(historyPage.body).toContain(`v ${packageJson.version}`);
+
+    expect(historyApi.statusCode).toBe(200);
+    expect(JSON.parse(historyApi.body)).toEqual({
+      items: [],
+      meta: {
+        rooms: [],
+        participants: [],
+        estimateTypes: [],
+        pagination: {
+          page: 1,
+          pageSize: 25,
+          totalItems: 0,
+          totalPages: 1,
+          hasPreviousPage: false,
+          hasNextPage: false,
+        },
+      },
+    });
   });
 
   test('creates a room id directly from the requested suffix', async () => {
@@ -458,6 +500,530 @@ describe('socket server', () => {
           expect.objectContaining({ name: 'Viewer', vote: null }),
         ]),
       );
+    } finally {
+      adminClient.close();
+      viewerClient.close();
+    }
+  });
+
+  test('records revealed estimates into history, stores the room, and overwrites repeated estimates', async () => {
+    const adminClient = await connectClient(port);
+    const viewerClient = await connectClient(port);
+    const selectedTask = 'https://tracker.example/APP-1201';
+
+    try {
+      const createResult = await createRoom(adminClient, 'history-room');
+      const roomId = createResult.room.id;
+
+      await joinRoom(adminClient, {
+        roomId,
+        name: 'Admin',
+        isAdmin: true,
+      });
+      await joinRoom(viewerClient, {
+        roomId,
+        name: 'Viewer',
+      });
+
+      await expect(emitWithAck(adminClient, 'task_list_update', {
+        roomId,
+        items: [selectedTask],
+      })).resolves.toEqual({
+        ok: true,
+        taskState: {
+          items: [selectedTask],
+          selectedIndex: 0,
+        },
+        estimationMode: 'points',
+      });
+
+      await expect(emitWithAck(adminClient, 'set_estimation_mode', {
+        roomId,
+        mode: 'hours',
+      })).resolves.toEqual({
+        ok: true,
+        estimationMode: 'hours',
+      });
+
+      const revealPromise = waitForEvent(viewerClient, 'reveal_update', value => value === true);
+      viewerClient.emit('vote', { roomId, value: '8' });
+      adminClient.emit('reveal', roomId);
+      await expect(revealPromise).resolves.toBe(true);
+
+      const resetRevealPromise = waitForEvent(viewerClient, 'reveal_update', value => value === false);
+      const resetVotesPromise = waitForEvent(
+        viewerClient,
+        'votes_update',
+        players => players.every(player => player.vote === null),
+      );
+      adminClient.emit('reset', roomId);
+      await expect(resetRevealPromise).resolves.toBe(false);
+      await expect(resetVotesPromise).resolves.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Admin', vote: null }),
+          expect.objectContaining({ name: 'Viewer', vote: null }),
+        ]),
+      );
+
+      const secondRevealPromise = waitForEvent(viewerClient, 'reveal_update', value => value === true);
+      viewerClient.emit('vote', { roomId, value: '13' });
+      adminClient.emit('reveal', roomId);
+      await expect(secondRevealPromise).resolves.toBe(true);
+
+      const today = new Date().toISOString().slice(0, 10);
+      const historyResponse = await request(
+        port,
+        `/api/estimation-history?roomId=${roomId}&taskId=APP-1201&participantName=Viewer&estimateType=hours&recordedOn=${today}`,
+      );
+
+      expect(historyResponse.statusCode).toBe(200);
+      expect(JSON.parse(historyResponse.body)).toEqual({
+        items: [
+          expect.objectContaining({
+            roomId,
+            taskId: 'APP-1201',
+            participantName: 'Viewer',
+            estimate: '13',
+            estimateType: 'hours',
+            recordedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+          }),
+        ],
+        meta: {
+          rooms: [roomId],
+          participants: ['Viewer'],
+          estimateTypes: ['hours'],
+          pagination: {
+            page: 1,
+            pageSize: 25,
+            totalItems: 1,
+            totalPages: 1,
+            hasPreviousPage: false,
+            hasNextPage: false,
+          },
+        },
+      });
+    } finally {
+      adminClient.close();
+      viewerClient.close();
+    }
+  });
+
+  test('overwrites a repeated estimate for the same task and participant even when the room changes', async () => {
+    const adminClient = await connectClient(port);
+    const viewerClient = await connectClient(port);
+    const selectedTask = 'https://tracker.example/APP-1202';
+
+    try {
+      const firstCreateResult = await createRoom(adminClient, 'history-room-first');
+      const firstRoomId = firstCreateResult.room.id;
+
+      await joinRoom(adminClient, {
+        roomId: firstRoomId,
+        name: 'Admin',
+        isAdmin: true,
+      });
+      await joinRoom(viewerClient, {
+        roomId: firstRoomId,
+        name: 'Viewer',
+      });
+
+      await emitWithAck(adminClient, 'task_list_update', {
+        roomId: firstRoomId,
+        items: [selectedTask],
+      });
+      await emitWithAck(adminClient, 'set_estimation_mode', {
+        roomId: firstRoomId,
+        mode: 'hours',
+      });
+
+      const firstRevealPromise = waitForEvent(viewerClient, 'reveal_update', value => value === true);
+      viewerClient.emit('vote', { roomId: firstRoomId, value: '5' });
+      adminClient.emit('reveal', firstRoomId);
+      await expect(firstRevealPromise).resolves.toBe(true);
+
+      const secondCreateResult = await createRoom(adminClient, 'history-room-second');
+      const secondRoomId = secondCreateResult.room.id;
+
+      await joinRoom(adminClient, {
+        roomId: secondRoomId,
+        name: 'Admin',
+        isAdmin: true,
+      });
+      await joinRoom(viewerClient, {
+        roomId: secondRoomId,
+        name: 'Viewer',
+      });
+
+      await emitWithAck(adminClient, 'task_list_update', {
+        roomId: secondRoomId,
+        items: [selectedTask],
+      });
+      await emitWithAck(adminClient, 'set_estimation_mode', {
+        roomId: secondRoomId,
+        mode: 'hours',
+      });
+
+      const secondRevealPromise = waitForEvent(viewerClient, 'reveal_update', value => value === true);
+      viewerClient.emit('vote', { roomId: secondRoomId, value: '13' });
+      adminClient.emit('reveal', secondRoomId);
+      await expect(secondRevealPromise).resolves.toBe(true);
+
+      const today = new Date().toISOString().slice(0, 10);
+      const historyResponse = await request(
+        port,
+        `/api/estimation-history?taskId=APP-1202&participantName=Viewer&estimateType=hours&recordedOn=${today}`,
+      );
+
+      expect(historyResponse.statusCode).toBe(200);
+      const payload = JSON.parse(historyResponse.body);
+      expect(payload.items).toEqual([
+        expect.objectContaining({
+          roomId: secondRoomId,
+          taskId: 'APP-1202',
+          participantName: 'Viewer',
+          estimate: '13',
+          estimateType: 'hours',
+          recordedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+        }),
+      ]);
+      expect(payload.meta.rooms).toContain(secondRoomId);
+      expect(payload.meta.participants).toContain('Viewer');
+      expect(payload.meta.estimateTypes).toContain('hours');
+    } finally {
+      adminClient.close();
+      viewerClient.close();
+    }
+  });
+
+  test('keeps separate history rows for points and hours on the same task', async () => {
+    const adminClient = await connectClient(port);
+    const viewerClient = await connectClient(port);
+    const selectedTask = 'https://tracker.example/APP-1203';
+
+    try {
+      const createResult = await createRoom(adminClient, 'history-room-types');
+      const roomId = createResult.room.id;
+
+      await joinRoom(adminClient, {
+        roomId,
+        name: 'Admin',
+        isAdmin: true,
+      });
+      await joinRoom(viewerClient, {
+        roomId,
+        name: 'Viewer',
+      });
+
+      await emitWithAck(adminClient, 'task_list_update', {
+        roomId,
+        items: [selectedTask],
+      });
+
+      const pointsRevealPromise = waitForEvent(viewerClient, 'reveal_update', value => value === true);
+      viewerClient.emit('vote', { roomId, value: '3' });
+      adminClient.emit('reveal', roomId);
+      await expect(pointsRevealPromise).resolves.toBe(true);
+
+      const modeResetPromise = waitForEvent(viewerClient, 'reveal_update', value => value === false);
+      const clearedVotesPromise = waitForEvent(
+        viewerClient,
+        'votes_update',
+        players => players.every(player => player.vote === null),
+      );
+
+      await expect(emitWithAck(adminClient, 'set_estimation_mode', {
+        roomId,
+        mode: 'hours',
+      })).resolves.toEqual({
+        ok: true,
+        estimationMode: 'hours',
+      });
+      await expect(modeResetPromise).resolves.toBe(false);
+      await expect(clearedVotesPromise).resolves.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Admin', vote: null }),
+          expect.objectContaining({ name: 'Viewer', vote: null }),
+        ]),
+      );
+
+      const hoursRevealPromise = waitForEvent(viewerClient, 'reveal_update', value => value === true);
+      viewerClient.emit('vote', { roomId, value: '5' });
+      adminClient.emit('reveal', roomId);
+      await expect(hoursRevealPromise).resolves.toBe(true);
+
+      const today = new Date().toISOString().slice(0, 10);
+      const historyResponse = await request(
+        port,
+        `/api/estimation-history?taskId=APP-1203&participantName=Viewer&recordedOn=${today}`,
+      );
+
+      expect(historyResponse.statusCode).toBe(200);
+      const payload = JSON.parse(historyResponse.body);
+      expect(payload.items).toHaveLength(2);
+      expect(payload.items).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          roomId,
+          taskId: 'APP-1203',
+          participantName: 'Viewer',
+          estimate: '3',
+          estimateType: 'points',
+        }),
+        expect.objectContaining({
+          roomId,
+          taskId: 'APP-1203',
+          participantName: 'Viewer',
+          estimate: '5',
+          estimateType: 'hours',
+        }),
+      ]));
+    } finally {
+      adminClient.close();
+      viewerClient.close();
+    }
+  });
+
+  test('returns paginated history with configurable page size', async () => {
+    const adminClient = await connectClient(port);
+    const viewerClient = await connectClient(port);
+    const selectedTask = 'https://tracker.example/APP-1204';
+
+    try {
+      const createResult = await createRoom(adminClient, 'history-room-pagination');
+      const roomId = createResult.room.id;
+
+      await joinRoom(adminClient, {
+        roomId,
+        name: 'Admin',
+        isAdmin: true,
+      });
+      await joinRoom(viewerClient, {
+        roomId,
+        name: 'Viewer',
+      });
+
+      await emitWithAck(adminClient, 'task_list_update', {
+        roomId,
+        items: [selectedTask],
+      });
+
+      const pointsVotesPromise = waitForEvent(
+        viewerClient,
+        'votes_update',
+        players => players.some(player => player.name === 'Admin' && player.vote === '2')
+          && players.some(player => player.name === 'Viewer' && player.vote === '3'),
+      );
+      const pointsRevealPromise = waitForEvent(viewerClient, 'reveal_update', value => value === true);
+      adminClient.emit('vote', { roomId, value: '2' });
+      viewerClient.emit('vote', { roomId, value: '3' });
+      await expect(pointsVotesPromise).resolves.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Admin', vote: '2' }),
+          expect.objectContaining({ name: 'Viewer', vote: '3' }),
+        ]),
+      );
+      adminClient.emit('reveal', roomId);
+      await expect(pointsRevealPromise).resolves.toBe(true);
+
+      const modeResetPromise = waitForEvent(viewerClient, 'reveal_update', value => value === false);
+      const clearedVotesPromise = waitForEvent(
+        viewerClient,
+        'votes_update',
+        players => players.every(player => player.vote === null),
+      );
+
+      await expect(emitWithAck(adminClient, 'set_estimation_mode', {
+        roomId,
+        mode: 'hours',
+      })).resolves.toEqual({
+        ok: true,
+        estimationMode: 'hours',
+      });
+      await expect(modeResetPromise).resolves.toBe(false);
+      await expect(clearedVotesPromise).resolves.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Admin', vote: null }),
+          expect.objectContaining({ name: 'Viewer', vote: null }),
+        ]),
+      );
+
+      const hoursVotesPromise = waitForEvent(
+        viewerClient,
+        'votes_update',
+        players => players.some(player => player.name === 'Admin' && player.vote === '5')
+          && players.some(player => player.name === 'Viewer' && player.vote === '8'),
+      );
+      const hoursRevealPromise = waitForEvent(viewerClient, 'reveal_update', value => value === true);
+      adminClient.emit('vote', { roomId, value: '5' });
+      viewerClient.emit('vote', { roomId, value: '8' });
+      await expect(hoursVotesPromise).resolves.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Admin', vote: '5' }),
+          expect.objectContaining({ name: 'Viewer', vote: '8' }),
+        ]),
+      );
+      adminClient.emit('reveal', roomId);
+      await expect(hoursRevealPromise).resolves.toBe(true);
+
+      const historyResponse = await request(
+        port,
+        '/api/estimation-history?taskId=APP-1204&page=2&pageSize=2',
+      );
+
+      expect(historyResponse.statusCode).toBe(200);
+      const payload = JSON.parse(historyResponse.body);
+      expect(payload.items).toHaveLength(2);
+      expect(payload.items).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          taskId: 'APP-1204',
+          estimateType: 'points',
+        }),
+        expect.objectContaining({
+          taskId: 'APP-1204',
+          estimateType: 'points',
+        }),
+      ]));
+      expect(payload.meta.pagination).toEqual({
+        page: 2,
+        pageSize: 2,
+        totalItems: 4,
+        totalPages: 2,
+        hasPreviousPage: true,
+        hasNextPage: false,
+      });
+    } finally {
+      adminClient.close();
+      viewerClient.close();
+    }
+  });
+
+  test('syncs participant reactions across clients and includes them in later joins', async () => {
+    const adminClient = await connectClient(port);
+    const viewerClient = await connectClient(port);
+    const lateClient = await connectClient(port);
+
+    try {
+      const createResult = await createRoom(adminClient, 'reaction-room');
+      const roomId = createResult.room.id;
+
+      await joinRoom(adminClient, {
+        roomId,
+        name: 'Admin',
+        isAdmin: true,
+      });
+      await joinRoom(viewerClient, {
+        roomId,
+        name: 'Viewer',
+      });
+
+      const reactionPromise = waitForEvent(
+        adminClient,
+        'reactions_update',
+        players => players.some(player => player.name === 'Viewer' && player.reaction === '🔥'),
+      );
+      const reactionResult = emitWithAck(viewerClient, 'set_reaction', {
+        roomId,
+        value: '🔥',
+      });
+
+      await expect(reactionResult).resolves.toEqual({
+        ok: true,
+        reaction: '🔥',
+      });
+      await expect(reactionPromise).resolves.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Viewer', reaction: '🔥' }),
+        ]),
+      );
+
+      const lateJoinState = await joinRoom(lateClient, {
+        roomId,
+        name: 'Late',
+      });
+
+      expect(lateJoinState).toEqual(expect.objectContaining({
+        ok: true,
+      }));
+      expect(lateJoinState.players).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Viewer', reaction: '🔥' }),
+        ]),
+      );
+    } finally {
+      adminClient.close();
+      viewerClient.close();
+      lateClient.close();
+    }
+  });
+
+  test('clears reactions automatically after 3 seconds', async () => {
+    const adminClient = await connectClient(port);
+    const viewerClient = await connectClient(port);
+
+    try {
+      const createResult = await createRoom(adminClient, 'reaction-expiry-room');
+      const roomId = createResult.room.id;
+
+      await joinRoom(adminClient, {
+        roomId,
+        name: 'Admin',
+        isAdmin: true,
+      });
+      await joinRoom(viewerClient, {
+        roomId,
+        name: 'Viewer',
+      });
+
+      await expect(emitWithAck(viewerClient, 'set_reaction', {
+        roomId,
+        value: '🔥',
+      })).resolves.toEqual({
+        ok: true,
+        reaction: '🔥',
+      });
+
+      const clearedReaction = waitForEvent(
+        adminClient,
+        'reactions_update',
+        players => players.some(player => player.name === 'Viewer' && player.reaction === null),
+        4500,
+      );
+
+      await expect(clearedReaction).resolves.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Viewer', reaction: null }),
+        ]),
+      );
+    } finally {
+      adminClient.close();
+      viewerClient.close();
+    }
+  });
+
+  test('rejects reactions outside the allowed emoji set', async () => {
+    const adminClient = await connectClient(port);
+    const viewerClient = await connectClient(port);
+
+    try {
+      const createResult = await createRoom(adminClient, 'reaction-validation-room');
+      const roomId = createResult.room.id;
+
+      await joinRoom(adminClient, {
+        roomId,
+        name: 'Admin',
+        isAdmin: true,
+      });
+      await joinRoom(viewerClient, {
+        roomId,
+        name: 'Viewer',
+      });
+
+      await expect(emitWithAck(viewerClient, 'set_reaction', {
+        roomId,
+        value: '🚀',
+      })).resolves.toEqual({
+        ok: false,
+        error: 'REACTION_INVALID',
+      });
     } finally {
       adminClient.close();
       viewerClient.close();

@@ -3,10 +3,13 @@ const ROOM_ID_PATTERN = new RegExp(`^[\\p{L}\\p{N}](?:[\\p{L}\\p{N}_-]{0,${ROOM_
 const RESERVED_ROOM_IDS = new Set([
     'health',
     'version',
+    'history',
     'index-html',
     'robots-txt',
     'socket-io',
 ]);
+const AVAILABLE_REACTIONS = ['👍', '🔥', '❤️', '😂', '👏', '👀', '🤯'];
+const AVAILABLE_REACTIONS_SET = new Set(AVAILABLE_REACTIONS);
 
 function normalizeTaskState(taskState = {}) {
     const items = [...new Set((Array.isArray(taskState.items) ? taskState.items : [])
@@ -24,6 +27,22 @@ function normalizeTaskState(taskState = {}) {
 
 function normalizeEstimationMode(mode) {
     return mode === 'hours' ? 'hours' : 'points';
+}
+
+function normalizeReaction(value) {
+    if (value === null || typeof value === 'undefined') {
+        return null;
+    }
+
+    const normalizedReaction = String(value).trim();
+    if (!normalizedReaction) {
+        return null;
+    }
+    if (!AVAILABLE_REACTIONS_SET.has(normalizedReaction)) {
+        throw new Error('REACTION_INVALID');
+    }
+
+    return normalizedReaction;
 }
 
 function normalizeRoomId(roomId) {
@@ -202,6 +221,7 @@ function createRoomRegistry() {
             id: socketId,
             name: playerName,
             vote: null,
+            reaction: null,
             isAdmin: wantsAdmin,
         };
 
@@ -318,6 +338,17 @@ function createRoomRegistry() {
         return Object.values(roomState.players);
     }
 
+    function recordReaction(roomId, socketId, value) {
+        const roomState = ensureRoomState(roomId);
+        const player = roomState.players[socketId];
+        if (!player) {
+            throw new Error('FORBIDDEN');
+        }
+
+        player.reaction = normalizeReaction(value);
+        return Object.values(roomState.players);
+    }
+
     function revealVotes(roomId) {
         const roomState = ensureRoomState(roomId);
         roomState.revealed = true;
@@ -350,13 +381,16 @@ function createRoomRegistry() {
         setEstimationMode,
         selectTask,
         recordVote,
+        recordReaction,
         revealVotes,
         resetRoom,
     };
 }
 
 module.exports = {
+    AVAILABLE_REACTIONS,
     createRoomRegistry,
+    normalizeReaction,
     normalizeEstimationMode,
     normalizeTaskState,
     normalizeRoomId,

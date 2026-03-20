@@ -16,6 +16,18 @@ Install dependencies:
 npm install
 ```
 
+Configure the PostgreSQL connection string:
+
+```sh
+cp .env.example .env
+```
+
+Set `DATABASE_URL` in `.env`, for example with an Aiven connection string:
+
+```env
+DATABASE_URL=postgres://user:password@host:port/defaultdb?sslmode=require
+```
+
 Run the server locally:
 
 ```sh
@@ -23,6 +35,7 @@ npm start
 ```
 
 The server listens on `process.env.PORT` or `3000` by default.
+On startup it connects to PostgreSQL and auto-creates the `estimation_history` table for estimate history storage.
 
 Health and version endpoints:
 
@@ -138,6 +151,7 @@ The compose setup includes:
 
 - `restart: unless-stopped`
 - container health checks via `GET /health`
+- estimate history storage in PostgreSQL via `DATABASE_URL`
 - optional YouTrack variables from `.env`
 - app version exposure through the UI footer and `GET /version`
 - Traefik labels for `pocker.webpaul.ru`
