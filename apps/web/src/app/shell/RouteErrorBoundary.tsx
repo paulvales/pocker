@@ -11,10 +11,10 @@ export function RouteErrorBoundary() {
     <AppShell>
       <section className="panel panel-error">
         <p className="eyebrow">Routing Error</p>
-        <h1>Foundation route crashed</h1>
+        <h1>Route failed to render</h1>
         <p className="lead">
-          The page shell is mounted correctly, but this route still needs
-          implementation hardening.
+          The application shell is available, but this screen threw while it was
+          rendering.
         </p>
         <pre className="error-details">{message}</pre>
       </section>

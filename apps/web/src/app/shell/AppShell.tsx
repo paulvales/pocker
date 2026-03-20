@@ -18,8 +18,8 @@ export function AppShell({ children }: AppShellProps) {
             PK
           </Link>
           <div className="brand-copy">
-            <p className="eyebrow">React Rewrite</p>
-            <h1>Pocker Foundation</h1>
+            <p className="eyebrow">Planning Poker</p>
+            <h1>Pocker</h1>
           </div>
         </div>
         <nav className="app-nav" aria-label="Primary">

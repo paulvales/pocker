@@ -69,39 +69,31 @@ async function serveHtmlPage(res, candidates, versionLabel) {
 }
 
 function getHomePageCandidates(config) {
-    const homeCandidates = [];
-
-    if (config.frontend.mode === 'react') {
-        homeCandidates.push({
+    if (config.frontend.mode === 'legacy') {
+        return [{
             fileName: 'index.html',
-            filePath: config.frontend.reactEntryFilePath,
-        });
+            filePath: config.frontend.legacyHomeFilePath,
+        }];
     }
 
-    homeCandidates.push({
+    return [{
         fileName: 'index.html',
-        filePath: config.frontend.legacyHomeFilePath,
-    });
-
-    return homeCandidates;
+        filePath: config.frontend.reactEntryFilePath,
+    }];
 }
 
 function getHistoryPageCandidates(config) {
-    const historyCandidates = [];
-
-    if (config.frontend.mode === 'react') {
-        historyCandidates.push({
-            fileName: 'index.html',
-            filePath: config.frontend.reactEntryFilePath,
-        });
+    if (config.frontend.mode === 'legacy') {
+        return [{
+            fileName: 'history.html',
+            filePath: config.frontend.legacyHistoryFilePath,
+        }];
     }
 
-    historyCandidates.push({
-        fileName: 'history.html',
-        filePath: config.frontend.legacyHistoryFilePath,
-    });
-
-    return historyCandidates;
+    return [{
+        fileName: 'index.html',
+        filePath: config.frontend.reactEntryFilePath,
+    }];
 }
 
 function getSettingsPageCandidates(config) {
@@ -161,6 +153,12 @@ function createHttpRequestHandler({
 
             if (pathname === HTTP_ROUTES.history) {
                 res.writeHead(302, { Location: HTTP_ROUTES.historyPage });
+                res.end();
+                return;
+            }
+
+            if (pathname === HTTP_ROUTES.homeHtml && config.frontend.mode === 'react') {
+                res.writeHead(302, { Location: HTTP_ROUTES.home });
                 res.end();
                 return;
             }

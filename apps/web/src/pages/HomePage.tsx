@@ -5,9 +5,9 @@ import { buildRoomPath, isValidRoomSlug, normalizeRoomSlug } from '@/features/ro
 import { readStoredPlayerName } from '@/features/rooms/model/sessionPersistence';
 
 const checkpoints = [
-  'Room entry, slug routing and local identity persistence are already handled in React.',
-  'The topbar and session shell are ready for voting, task board and reactions wiring.',
-  'History stays available as a separate route while room lifecycle logic moves out of legacy HTML.',
+  'Room routes, local identity persistence and admin intent now run through the React shell.',
+  'Voting, reactions, task navigation and history all share the same frontend runtime.',
+  'Legacy room links stay compatible while the product runs on the React entry by default.',
 ];
 
 export function HomePage() {
@@ -30,12 +30,11 @@ export function HomePage() {
   return (
     <section className="page-grid">
       <article className="panel panel-hero">
-        <p className="eyebrow">APP-18</p>
-        <h2>React room entry and session shell are ready for day-to-day use.</h2>
+        <p className="eyebrow">Rooms</p>
+        <h2>Open a planning room in one step.</h2>
         <p className="lead">
-          Open any legacy-compatible room slug, create the room from the React
-          flow and continue into the live session shell without touching the old
-          inline client.
+          Create a room, reopen an existing slug or jump straight into a shared
+          planning session from the React application shell.
         </p>
 
         <div className="room-launch-form">
@@ -91,7 +90,7 @@ export function HomePage() {
       </article>
 
       <article className="panel">
-        <p className="eyebrow">What exists now</p>
+        <p className="eyebrow">What you can do</p>
         <ul className="check-list">
           {checkpoints.map((item) => (
             <li key={item}>{item}</li>

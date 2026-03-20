@@ -7,11 +7,10 @@ export function NotFoundPage() {
         <p className="eyebrow">404</p>
         <h2>Route not found</h2>
         <p className="lead">
-          The foundation router is active, but this path is not part of the
-          current scaffold.
+          This path is not part of the current Pocker workspace shell.
         </p>
         <Link className="button-primary" to="/">
-          Back to overview
+          Back to home
         </Link>
       </article>
     </section>

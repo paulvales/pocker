@@ -165,13 +165,15 @@ describe('socket server', () => {
     await estimationHistoryStore.close();
   });
 
-  test('exposes health and version info over http and serves room paths', async () => {
+  test('exposes health and version info over http and serves the React frontend by default', async () => {
     const health = await request(port, HTTP_ROUTES.health);
     const version = await request(port, HTTP_ROUTES.version);
     const home = await request(port, HTTP_ROUTES.home);
+    const homeHtml = await request(port, HTTP_ROUTES.homeHtml);
     const roomHome = await request(port, '/backend-sprint-42/');
     const roomRedirect = await request(port, '/backend-sprint-42');
     const historyPage = await request(port, HTTP_ROUTES.historyPage);
+    const historyHtml = await request(port, HTTP_ROUTES.historyHtml);
     const historyApi = await request(port, HTTP_ROUTES.estimationHistory);
 
     expect(health.statusCode).toBe(200);
@@ -189,19 +191,25 @@ describe('socket server', () => {
     });
 
     expect(home.statusCode).toBe(200);
-    expect(home.body).toContain(`v ${packageJson.version}`);
-    expect(home.body).not.toContain('__APP_VERSION__');
-    expect(home.body).toContain('id="historyTopBtn"');
+    expect(home.body).toContain('<div id="root"></div>');
+    expect(home.body).toContain('<title>Pocker React</title>');
+    expect(home.body).not.toContain('id="historyTopBtn"');
+
+    expect(homeHtml.statusCode).toBe(302);
+    expect(homeHtml.headers.location).toBe(HTTP_ROUTES.home);
 
     expect(roomHome.statusCode).toBe(200);
-    expect(roomHome.body).toContain(`v ${packageJson.version}`);
+    expect(roomHome.body).toContain('<div id="root"></div>');
 
     expect(roomRedirect.statusCode).toBe(302);
     expect(roomRedirect.headers.location).toBe('/backend-sprint-42/');
 
     expect(historyPage.statusCode).toBe(200);
-    expect(historyPage.body).toContain('id="historyTable"');
-    expect(historyPage.body).toContain(`v ${packageJson.version}`);
+    expect(historyPage.body).toContain('<div id="root"></div>');
+    expect(historyPage.body).not.toContain('id="historyTable"');
+
+    expect(historyHtml.statusCode).toBe(302);
+    expect(historyHtml.headers.location).toBe(HTTP_ROUTES.historyPage);
 
     expect(historyApi.statusCode).toBe(200);
     expect(JSON.parse(historyApi.body)).toEqual({

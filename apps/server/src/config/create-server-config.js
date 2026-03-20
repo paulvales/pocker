@@ -45,7 +45,7 @@ function normalizeStringArray(value) {
 }
 
 function normalizeFrontendMode(value) {
-    return value === 'react' ? 'react' : 'legacy';
+    return value === 'legacy' ? 'legacy' : 'react';
 }
 
 function createServerConfig(options = {}) {

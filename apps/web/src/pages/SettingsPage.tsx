@@ -31,13 +31,12 @@ export function SettingsPage() {
     <section className="page-grid settings-page-grid">
       <article className="panel panel-stage settings-hero-panel">
         <div className="settings-hero-copy">
-          <p className="eyebrow">APP-22</p>
-          <h2>SaaS domain foundation is now visible inside the React shell.</h2>
+          <p className="eyebrow">Workspace</p>
+          <h2>Workspace settings and tenant status live in the main app shell.</h2>
           <p className="lead">
-            The page reads <code>/api/settings/bootstrap</code> and surfaces the
-            workspace, memberships, invites, room ownership metadata and billing
-            readiness through the same frontend architecture as the room and
-            history flows.
+            Read <code>/api/settings/bootstrap</code> to inspect workspace
+            identity, membership roles, room ownership metadata and billing
+            readiness from the same React frontend as rooms and history.
           </p>
         </div>
 

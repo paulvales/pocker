@@ -137,12 +137,12 @@ export function HistoryPage() {
     <section className="page-grid">
       <article className="panel panel-stage history-hero-panel">
         <div className="history-hero-copy">
-          <p className="eyebrow">APP-20</p>
-          <h2>Estimate history now lives inside the React shell.</h2>
+          <p className="eyebrow">History</p>
+          <h2>Review previous estimates without leaving the main app shell.</h2>
           <p className="lead">
-            The page reads <code>/api/estimation-history</code>, syncs filters
-            with the URL and keeps pagination inside the same frontend
-            architecture as the room flow.
+            Filter <code>/api/estimation-history</code>, sync search state with
+            the URL and page through prior room decisions from the same React
+            frontend that powers active sessions.
           </p>
         </div>
 

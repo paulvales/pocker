@@ -231,7 +231,7 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
         <article className="panel panel-stage room-entry-panel">
           <div className="panel-heading">
             <div>
-              <p className="eyebrow">APP-19</p>
+              <p className="eyebrow">Room</p>
               <h2>
                 {normalizedRoomSlug
                   ? `Room entry for /${normalizedRoomSlug}`
@@ -246,9 +246,8 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
           </div>
 
           <p className="lead">
-            Create a room, join an existing slug link, or reopen your saved session
-            through the React entry flow. Realtime state already comes from the
-            dedicated room store.
+            Create a room, join an existing slug link or restore your local
+            identity from the main React session flow.
           </p>
 
           <div className="room-entry-grid">
@@ -266,8 +265,7 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
                 </span>
               </div>
               <p className="field-help">
-                Legacy-compatible route. This page supports direct slug links and
-                same-room reloads.
+                Canonical room route with compatibility for existing slug links.
               </p>
             </div>
 
