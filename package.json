@@ -4,12 +4,16 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest",
+    "test": "jest __tests__",
+    "test:server": "jest __tests__",
+    "test:web": "npm --prefix apps/web run test:run",
+    "test:all": "npm run test:server -- --runInBand && npm run test:web",
     "start": "node ./index.js",
     "web:dev": "npm --prefix apps/web run dev",
     "web:build": "npm --prefix apps/web run build",
     "web:typecheck": "npm --prefix apps/web run typecheck",
-    "web:lint": "npm --prefix apps/web run lint"
+    "web:lint": "npm --prefix apps/web run lint",
+    "web:test": "npm --prefix apps/web run test:run"
   },
   "keywords": [],
   "author": "",

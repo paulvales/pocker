@@ -1,4 +1,7 @@
+const fs = require('fs/promises');
 const http = require('http');
+const os = require('os');
+const path = require('path');
 const { newDb } = require('pg-mem');
 const ioClient = require('socket.io-client');
 const packageJson = require('../package.json');
@@ -18,7 +21,7 @@ global.__POCKER_HISTORY_STORE_OPTIONS__ = {
   connectionString: 'postgres://test:test@127.0.0.1:5432/pocker_test?sslmode=disable',
   skipLegacyDeduplication: true,
 };
-const { estimationHistoryStore, io, server } = require('..');
+const { createServerApp, estimationHistoryStore, io, server } = require('..');
 delete global.__POCKER_HISTORY_STORE_OPTIONS__;
 
 function request(port, pathname) {
@@ -169,6 +172,55 @@ describe('socket server', () => {
         },
       },
     });
+  });
+
+  test('serves React history entry and redirects history.html in react mode', async () => {
+    const tempProjectRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'pocker-react-history-'),
+    );
+    const reactDistDirectory = path.join(tempProjectRoot, 'apps', 'web', 'dist');
+    const reactEntryFile = path.join(reactDistDirectory, 'index.html');
+
+    await fs.mkdir(reactDistDirectory, { recursive: true });
+    await fs.writeFile(
+      reactEntryFile,
+      '<!doctype html><html><body><div id="root"></div></body></html>',
+      'utf8',
+    );
+
+    const reactApp = createServerApp({
+      frontendMode: 'react',
+      port: 0,
+      projectRoot: tempProjectRoot,
+      estimationHistoryStore,
+    });
+
+    let reactPort = 0;
+
+    try {
+      await new Promise((resolve) => {
+        reactApp.server.listen(() => {
+          reactPort = reactApp.server.address().port;
+          resolve();
+        });
+      });
+
+      const historyPage = await request(reactPort, HTTP_ROUTES.historyPage);
+      const historyHtml = await request(reactPort, HTTP_ROUTES.historyHtml);
+
+      expect(historyPage.statusCode).toBe(200);
+      expect(historyPage.body).toContain('<div id="root"></div>');
+      expect(historyPage.body).not.toContain('id="historyTable"');
+
+      expect(historyHtml.statusCode).toBe(302);
+      expect(historyHtml.headers.location).toBe(HTTP_ROUTES.historyPage);
+    } finally {
+      reactApp.io.close();
+      await new Promise((resolve) => {
+        reactApp.server.close(resolve);
+      });
+      await fs.rm(tempProjectRoot, { recursive: true, force: true });
+    }
   });
 
   test('creates a room id directly from the requested suffix', async () => {
