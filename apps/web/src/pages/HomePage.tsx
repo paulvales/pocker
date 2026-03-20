@@ -1,27 +1,91 @@
-import { Link } from 'react-router-dom';
+import { startTransition, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+
+import { buildRoomPath, isValidRoomSlug, normalizeRoomSlug } from '@/features/rooms/model/roomRoute';
+import { readStoredPlayerName } from '@/features/rooms/model/sessionPersistence';
 
 const checkpoints = [
-  'App shell, routing and error boundaries are isolated from legacy HTML.',
-  'Design tokens and global styles are centralized for future feature work.',
-  'The room and history flows are represented as route placeholders, not inline script islands.',
+  'Room entry, slug routing and local identity persistence are already handled in React.',
+  'The topbar and session shell are ready for voting, task board and reactions wiring.',
+  'History stays available as a separate route while room lifecycle logic moves out of legacy HTML.',
 ];
 
 export function HomePage() {
+  const navigate = useNavigate();
+  const [roomSlug, setRoomSlug] = useState('alpha-room');
+  const normalizedRoomSlug = useMemo(() => normalizeRoomSlug(roomSlug), [roomSlug]);
+  const roomSlugIsValid = useMemo(() => isValidRoomSlug(roomSlug), [roomSlug]);
+  const savedPlayerName = readStoredPlayerName();
+
+  function handleOpenRoom() {
+    if (!roomSlugIsValid || !normalizedRoomSlug) {
+      return;
+    }
+
+    startTransition(() => {
+      void navigate(buildRoomPath(normalizedRoomSlug));
+    });
+  }
+
   return (
     <section className="page-grid">
       <article className="panel panel-hero">
-        <p className="eyebrow">APP-14</p>
-        <h2>React 19 + TypeScript foundation is ready for migration work.</h2>
+        <p className="eyebrow">APP-18</p>
+        <h2>React room entry and session shell are ready for day-to-day use.</h2>
         <p className="lead">
-          This app intentionally stops before feature parity. The goal here is a
-          stable frontend platform for the next React rewrite tasks.
+          Open any legacy-compatible room slug, create the room from the React
+          flow and continue into the live session shell without touching the old
+          inline client.
         </p>
+
+        <div className="room-launch-form">
+          <div className="field-stack">
+            <label className="field-label" htmlFor="homeRoomSlug">
+              Room slug
+            </label>
+            <div className="room-launch-row">
+              <input
+                id="homeRoomSlug"
+                className="room-input room-input-mono"
+                value={roomSlug}
+                onChange={(event) => {
+                  setRoomSlug(event.target.value);
+                }}
+                placeholder="team-sync"
+              />
+              <button
+                className="button-primary"
+                type="button"
+                onClick={handleOpenRoom}
+                disabled={!roomSlugIsValid || !normalizedRoomSlug}
+              >
+                Open room
+              </button>
+            </div>
+            <p className="field-help">
+              {roomSlugIsValid && normalizedRoomSlug
+                ? `Route preview: ${buildRoomPath(normalizedRoomSlug)}`
+                : 'Use letters, numbers, hyphen or underscore. Service routes are reserved.'}
+            </p>
+          </div>
+
+          <div className="saved-identity">
+            <span className="status-label">Saved identity</span>
+            <strong>{savedPlayerName || 'No local player name yet'}</strong>
+          </div>
+        </div>
+
         <div className="hero-actions">
-          <Link className="button-primary" to="/alpha-room">
-            Open room route placeholder
-          </Link>
+          <button
+            className="button-secondary"
+            type="button"
+            onClick={handleOpenRoom}
+            disabled={!roomSlugIsValid || !normalizedRoomSlug}
+          >
+            Go to room route
+          </button>
           <Link className="button-secondary" to="/history">
-            Open history route placeholder
+            Open history
           </Link>
         </div>
       </article>
