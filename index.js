@@ -7,6 +7,29 @@ const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
 const packageJson = require('./package.json');
+const {
+    ERROR_CODES,
+    HTTP_ROUTES,
+    SOCKET_EVENT_NAMES,
+    createHealthPayload,
+    createHistoryResponse,
+    createRoomSnapshotPayload,
+    createSocketAckError,
+    createSocketAckSuccess,
+    createVersionPayload,
+    getErrorCode,
+    parseCreateRoomPayload,
+    parseHistoryFilters,
+    parseJoinPayload,
+    parseNoteUpdatePayload,
+    parseRoomIdPayload,
+    parseSetEstimationModePayload,
+    parseSetReactionPayload,
+    parseSetStoryPointsPayload,
+    parseTaskListUpdatePayload,
+    parseTaskSelectPayload,
+    parseVotePayload,
+} = require('./packages/contracts');
 const { createEstimationHistoryStore } = require('./estimation-history-store');
 const {
     createRoomRegistry,
@@ -23,6 +46,8 @@ const YOU_TRACK_STORY_POINTS_FIELD = process.env.YOUTRACK_STORY_POINTS_FIELD || 
 const roomRegistry = createRoomRegistry();
 const historyStoreOptions = global.__POCKER_HISTORY_STORE_OPTIONS__ || {};
 const estimationHistoryStore = createEstimationHistoryStore(historyStoreOptions);
+const SOCKET_CLIENT_EVENTS = SOCKET_EVENT_NAMES.client;
+const SOCKET_SERVER_EVENTS = SOCKET_EVENT_NAMES.server;
 
 function respondJson(res, statusCode, payload) {
     res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -64,7 +89,7 @@ function serveHtmlFile(res, fileName) {
 
 function ensureYouTrackConfig() {
     if (!YOU_TRACK_BASE_URL || !YOU_TRACK_TOKEN) {
-        throw new Error('YOUTRACK_NOT_CONFIGURED');
+        throw new Error(ERROR_CODES.youTrackNotConfigured);
     }
 }
 
@@ -123,22 +148,6 @@ function buildHistoryEntries(roomState) {
         }));
 }
 
-function getHistoryFilters(searchParams) {
-    const parsedPage = Number.parseInt(String(searchParams.get('page') || ''), 10);
-    const parsedPageSize = Number.parseInt(String(searchParams.get('pageSize') || ''), 10);
-
-    return {
-        roomId: String(searchParams.get('roomId') || '').trim(),
-        taskId: String(searchParams.get('taskId') || '').trim(),
-        participantName: String(searchParams.get('participantName') || '').trim(),
-        estimate: String(searchParams.get('estimate') || '').trim(),
-        estimateType: String(searchParams.get('estimateType') || '').trim(),
-        recordedOn: String(searchParams.get('recordedOn') || '').trim(),
-        page: Number.isFinite(parsedPage) ? parsedPage : 1,
-        pageSize: Number.isFinite(parsedPageSize) ? parsedPageSize : 25,
-    };
-}
-
 async function setStoryPointsInYouTrack(issueIdReadable, storyPoints) {
     const response = await fetch(`${YOU_TRACK_BASE_URL}/api/commands`, {
         method: 'POST',
@@ -160,59 +169,58 @@ const server = http.createServer((req, res) => {
         const { pathname } = requestUrl;
         const roomIdFromPath = extractRoomIdFromPathname(pathname);
 
-        if (pathname === '/health') {
-            respondJson(res, 200, {
-                status: 'ok',
+        if (pathname === HTTP_ROUTES.health) {
+            respondJson(res, 200, createHealthPayload({
                 version: APP_VERSION,
                 build: APP_BUILD || null,
-            });
+            }));
             return;
         }
 
-        if (pathname === '/version') {
-            respondJson(res, 200, {
+        if (pathname === HTTP_ROUTES.version) {
+            respondJson(res, 200, createVersionPayload({
                 version: APP_VERSION,
                 build: APP_BUILD || null,
                 label: APP_VERSION_LABEL,
-            });
+            }));
             return;
         }
 
-        if (pathname === '/history') {
-            res.writeHead(302, { Location: '/history/' });
+        if (pathname === HTTP_ROUTES.history) {
+            res.writeHead(302, { Location: HTTP_ROUTES.historyPage });
             res.end();
             return;
         }
 
-        if (pathname === '/history/' || pathname === '/history.html') {
+        if (pathname === HTTP_ROUTES.historyPage || pathname === HTTP_ROUTES.historyHtml) {
             serveHtmlFile(res, 'history.html');
             return;
         }
 
-        if (pathname === '/api/estimation-history') {
+        if (pathname === HTTP_ROUTES.estimationHistory) {
             try {
-                const filters = getHistoryFilters(requestUrl.searchParams);
+                const filters = parseHistoryFilters(requestUrl.searchParams);
                 const [historyResult, meta] = await Promise.all([
                     estimationHistoryStore.list(filters),
                     estimationHistoryStore.listMeta(),
                 ]);
 
-                respondJson(res, 200, {
+                respondJson(res, 200, createHistoryResponse({
                     items: historyResult.items,
                     meta: {
                         ...meta,
                         pagination: historyResult.pagination,
                     },
-                });
+                }));
             } catch (error) {
                 respondJson(res, 500, {
-                    error: error.message || 'HISTORY_READ_FAILED',
+                    error: getErrorCode(error, ERROR_CODES.historyReadFailed),
                 });
             }
             return;
         }
 
-        if (pathname === '/' || pathname === '/index.html') {
+        if (pathname === HTTP_ROUTES.home || pathname === HTTP_ROUTES.homeHtml) {
             serveHtmlFile(res, 'index.html');
             return;
         }
@@ -235,7 +243,7 @@ const server = http.createServer((req, res) => {
         res.end('Not found');
     })().catch(error => {
         respondJson(res, 500, {
-            error: error.message || 'INTERNAL_SERVER_ERROR',
+            error: getErrorCode(error, ERROR_CODES.internalServerError),
         });
     });
 });
@@ -250,7 +258,7 @@ const reactionClearTimers = new Map();
 
 function emitPlayersUpdate(roomId) {
     const snapshot = roomRegistry.getSnapshot(roomId);
-    io.to(roomId).emit('players_update', snapshot.players);
+    io.to(roomId).emit(SOCKET_SERVER_EVENTS.playersUpdate, snapshot.players);
     return snapshot;
 }
 
@@ -275,7 +283,7 @@ function scheduleReactionClear(roomId, socketId) {
 
         try {
             const players = roomRegistry.recordReaction(roomId, socketId, null);
-            io.to(roomId).emit('reactions_update', players);
+            io.to(roomId).emit(SOCKET_SERVER_EVENTS.reactionsUpdate, players);
         } catch (error) {
             // ignore cleanup for sockets that already left the room
         }
@@ -304,10 +312,13 @@ function removeSocketFromRoom(socket, { roomId = socket.data.currentRoomId, emit
 
     socket.leave(roomId);
     delete socket.data.currentRoomId;
-    io.to(roomId).emit('players_update', Object.values(leaveResult.roomState.players));
+    io.to(roomId).emit(
+        SOCKET_SERVER_EVENTS.playersUpdate,
+        Object.values(leaveResult.roomState.players),
+    );
 
     if (emitLeaveEvent) {
-        io.to(roomId).emit('user_event', {
+        io.to(roomId).emit(SOCKET_SERVER_EVENTS.userEvent, {
             message: `${leaveResult.player.name} отключился`,
             type: 'error',
         });
@@ -317,43 +328,39 @@ function removeSocketFromRoom(socket, { roomId = socket.data.currentRoomId, emit
 }
 
 io.on('connection', socket => {
-    socket.on('create_room', ({ roomSuffix } = {}, callback) => {
+    socket.on(SOCKET_CLIENT_EVENTS.createRoom, (payload, callback) => {
         const respond = typeof callback === 'function' ? callback : () => {};
 
         try {
+            const { roomSuffix } = parseCreateRoomPayload(payload);
             const createResult = roomRegistry.createRoom({ roomSuffix });
-            respond({
-                ok: true,
+            respond(createSocketAckSuccess({
                 room: createResult.room,
-            });
+            }));
         } catch (error) {
-            respond({
-                ok: false,
-                error: error.message || 'UNKNOWN_ERROR',
-            });
+            respond(createSocketAckError(error));
         }
     });
 
-    socket.on('note_update', ({ roomId, note } = {}, callback) => {
+    socket.on(SOCKET_CLIENT_EVENTS.noteUpdate, (payload, callback) => {
         const respond = typeof callback === 'function' ? callback : () => {};
 
         try {
+            const { roomId, note } = parseNoteUpdatePayload(payload);
             roomRegistry.assertMembership(roomId, socket.id, { requireAdmin: true });
             const nextNote = roomRegistry.updateNote(roomId, note);
-            socket.to(roomId).emit('note_update', nextNote);
-            respond({ ok: true });
+            socket.to(roomId).emit(SOCKET_SERVER_EVENTS.noteUpdate, nextNote);
+            respond(createSocketAckSuccess());
         } catch (error) {
-            respond({
-                ok: false,
-                error: error.message || 'UNKNOWN_ERROR',
-            });
+            respond(createSocketAckError(error));
         }
     });
 
-    socket.on('join', ({ roomId, name, isAdmin } = {}, callback) => {
+    socket.on(SOCKET_CLIENT_EVENTS.join, (payload, callback) => {
         const respond = typeof callback === 'function' ? callback : () => {};
 
         try {
+            const { roomId, name, isAdmin } = parseJoinPayload(payload);
             const joinResult = roomRegistry.joinRoom({
                 roomId,
                 socketId: socket.id,
@@ -373,106 +380,100 @@ io.on('connection', socket => {
             socket.data.currentRoomId = joinResult.roomId;
             const snapshot = emitPlayersUpdate(joinResult.roomId);
 
-            respond({
-                ok: true,
-                room: snapshot.room,
-                players: snapshot.players,
-                revealed: snapshot.revealed,
-                note: snapshot.note,
-                taskState: snapshot.taskState,
-                estimationMode: snapshot.estimationMode,
-            });
+            respond(createSocketAckSuccess(createRoomSnapshotPayload(snapshot)));
 
-            io.to(joinResult.roomId).emit('user_event', {
+            io.to(joinResult.roomId).emit(SOCKET_SERVER_EVENTS.userEvent, {
                 message: `${joinResult.player.name} подключился`,
                 type: 'success',
             });
         } catch (error) {
-            respond({
-                ok: false,
-                error: error.message || 'UNKNOWN_ERROR',
-            });
+            respond(createSocketAckError(error));
         }
     });
 
-    socket.on('task_list_update', ({ roomId, items } = {}, callback) => {
+    socket.on(SOCKET_CLIENT_EVENTS.taskListUpdate, (payload, callback) => {
         const respond = typeof callback === 'function' ? callback : () => {};
 
         try {
+            const { roomId, items } = parseTaskListUpdatePayload(payload);
             roomRegistry.assertMembership(roomId, socket.id, { requireAdmin: true });
             const updateResult = roomRegistry.updateTaskList(roomId, items);
-            io.to(roomId).emit('task_state_update', updateResult.taskState);
-            io.to(roomId).emit('estimation_mode_update', updateResult.estimationMode);
-            respond({
-                ok: true,
+            io.to(roomId).emit(SOCKET_SERVER_EVENTS.taskStateUpdate, updateResult.taskState);
+            io.to(roomId).emit(
+                SOCKET_SERVER_EVENTS.estimationModeUpdate,
+                updateResult.estimationMode,
+            );
+            respond(createSocketAckSuccess({
                 taskState: updateResult.taskState,
                 estimationMode: updateResult.estimationMode,
-            });
+            }));
         } catch (error) {
-            respond({
-                ok: false,
-                error: error.message || 'UNKNOWN_ERROR',
-            });
+            respond(createSocketAckError(error));
         }
     });
 
-    socket.on('set_estimation_mode', ({ roomId, mode } = {}, callback) => {
+    socket.on(SOCKET_CLIENT_EVENTS.setEstimationMode, (payload, callback) => {
         const respond = typeof callback === 'function' ? callback : () => {};
 
         try {
+            const { roomId, mode } = parseSetEstimationModePayload(payload);
             roomRegistry.assertMembership(roomId, socket.id, { requireAdmin: true });
             const updateResult = roomRegistry.setEstimationMode(roomId, mode);
             if (updateResult.modeChanged) {
-                io.to(roomId).emit('estimation_mode_update', updateResult.estimationMode);
+                io.to(roomId).emit(
+                    SOCKET_SERVER_EVENTS.estimationModeUpdate,
+                    updateResult.estimationMode,
+                );
                 if (updateResult.revealChanged) {
-                    io.to(roomId).emit('reveal_update', updateResult.revealed);
+                    io.to(roomId).emit(SOCKET_SERVER_EVENTS.revealUpdate, updateResult.revealed);
                 }
-                io.to(roomId).emit('votes_update', updateResult.players);
+                io.to(roomId).emit(SOCKET_SERVER_EVENTS.votesUpdate, updateResult.players);
             }
-            respond({ ok: true, estimationMode: updateResult.estimationMode });
+            respond(createSocketAckSuccess({
+                estimationMode: updateResult.estimationMode,
+            }));
         } catch (error) {
-            respond({
-                ok: false,
-                error: error.message || 'UNKNOWN_ERROR',
-            });
+            respond(createSocketAckError(error));
         }
     });
 
-    socket.on('task_select', ({ roomId, direction } = {}, callback) => {
+    socket.on(SOCKET_CLIENT_EVENTS.taskSelect, (payload, callback) => {
         const respond = typeof callback === 'function' ? callback : () => {};
 
         try {
+            const { roomId, direction } = parseTaskSelectPayload(payload);
             roomRegistry.assertMembership(roomId, socket.id, { requireAdmin: true });
             const selectResult = roomRegistry.selectTask(roomId, direction);
-            io.to(roomId).emit('task_state_update', selectResult.taskState);
-            io.to(roomId).emit('estimation_mode_update', selectResult.estimationMode);
-            respond({
-                ok: true,
+            io.to(roomId).emit(SOCKET_SERVER_EVENTS.taskStateUpdate, selectResult.taskState);
+            io.to(roomId).emit(
+                SOCKET_SERVER_EVENTS.estimationModeUpdate,
+                selectResult.estimationMode,
+            );
+            respond(createSocketAckSuccess({
                 taskState: selectResult.taskState,
                 estimationMode: selectResult.estimationMode,
-            });
+            }));
         } catch (error) {
-            respond({
-                ok: false,
-                error: error.message || 'UNKNOWN_ERROR',
-            });
+            respond(createSocketAckError(error));
         }
     });
 
-    socket.on('vote', ({ roomId, value } = {}) => {
+    socket.on(SOCKET_CLIENT_EVENTS.vote, payload => {
         try {
+            const { roomId, value } = parseVotePayload(payload);
             roomRegistry.assertMembership(roomId, socket.id);
             const players = roomRegistry.recordVote(roomId, socket.id, value);
-            io.to(roomId).emit('votes_update', players);
+            io.to(roomId).emit(SOCKET_SERVER_EVENTS.votesUpdate, players);
         } catch (error) {
             // ignore unauthorized vote attempts
         }
     });
 
-    socket.on('set_reaction', ({ roomId, value } = {}, callback) => {
+    socket.on(SOCKET_CLIENT_EVENTS.setReaction, (payload, callback) => {
         const respond = typeof callback === 'function' ? callback : () => {};
 
         try {
+            const { roomId, value } = parseSetReactionPayload(payload);
             roomRegistry.assertMembership(roomId, socket.id);
             const players = roomRegistry.recordReaction(roomId, socket.id, value);
             const currentPlayer = players.find(player => player.id === socket.id);
@@ -481,21 +482,18 @@ io.on('connection', socket => {
             } else {
                 clearReactionTimer(roomId, socket.id);
             }
-            io.to(roomId).emit('reactions_update', players);
-            respond({
-                ok: true,
+            io.to(roomId).emit(SOCKET_SERVER_EVENTS.reactionsUpdate, players);
+            respond(createSocketAckSuccess({
                 reaction: currentPlayer ? currentPlayer.reaction : null,
-            });
+            }));
         } catch (error) {
-            respond({
-                ok: false,
-                error: error.message || 'UNKNOWN_ERROR',
-            });
+            respond(createSocketAckError(error));
         }
     });
 
-    socket.on('reveal', async roomId => {
+    socket.on(SOCKET_CLIENT_EVENTS.reveal, async payload => {
         try {
+            const roomId = parseRoomIdPayload(payload);
             const membership = roomRegistry.assertMembership(roomId, socket.id, { requireAdmin: true });
             const shouldRecordHistory = !membership.roomState.revealed;
             const historyEntries = shouldRecordHistory ? buildHistoryEntries(membership.roomState) : [];
@@ -509,33 +507,35 @@ io.on('connection', socket => {
             }
 
             const revealed = roomRegistry.revealVotes(roomId);
-            io.to(roomId).emit('reveal_update', revealed);
+            io.to(roomId).emit(SOCKET_SERVER_EVENTS.revealUpdate, revealed);
         } catch (error) {
             // ignore unauthorized reveal attempts
         }
     });
 
-    socket.on('reset', roomId => {
+    socket.on(SOCKET_CLIENT_EVENTS.reset, payload => {
         try {
+            const roomId = parseRoomIdPayload(payload);
             roomRegistry.assertMembership(roomId, socket.id, { requireAdmin: true });
             const resetResult = roomRegistry.resetRoom(roomId);
-            io.to(roomId).emit('votes_update', resetResult.players);
-            io.to(roomId).emit('reveal_update', resetResult.revealed);
-            io.to(roomId).emit('note_update', resetResult.note);
+            io.to(roomId).emit(SOCKET_SERVER_EVENTS.votesUpdate, resetResult.players);
+            io.to(roomId).emit(SOCKET_SERVER_EVENTS.revealUpdate, resetResult.revealed);
+            io.to(roomId).emit(SOCKET_SERVER_EVENTS.noteUpdate, resetResult.note);
         } catch (error) {
             // ignore unauthorized reset attempts
         }
     });
 
-    socket.on('set_story_points', async ({ roomId } = {}, callback) => {
+    socket.on(SOCKET_CLIENT_EVENTS.setStoryPoints, async (payload, callback) => {
         const respond = typeof callback === 'function' ? callback : () => {};
 
         try {
+            const { roomId } = parseSetStoryPointsPayload(payload);
             ensureYouTrackConfig();
             const membership = roomRegistry.assertMembership(roomId, socket.id, { requireAdmin: true });
             const average = calcRoundedAverage(getNumericVotes(membership.roomState.players));
             if (average === null) {
-                throw new Error('NO_VOTES');
+                throw new Error(ERROR_CODES.noVotes);
             }
 
             const taskState = normalizeTaskState(membership.roomState.taskState);
@@ -544,21 +544,17 @@ io.on('connection', socket => {
                 || extractIssueIdReadableFromNote(membership.roomState.note);
 
             if (!issueIdReadable) {
-                throw new Error('ISSUE_NOT_FOUND_IN_NOTE');
+                throw new Error(ERROR_CODES.issueNotFoundInNote);
             }
 
             await setStoryPointsInYouTrack(issueIdReadable, average);
-            respond({
-                ok: true,
+            respond(createSocketAckSuccess({
                 average,
                 issueIdReadable,
                 issueSummary: '',
-            });
+            }));
         } catch (error) {
-            respond({
-                ok: false,
-                error: error.message || 'UNKNOWN_ERROR',
-            });
+            respond(createSocketAckError(error));
         }
     });
 
@@ -566,8 +562,9 @@ io.on('connection', socket => {
         removeSocketFromRoom(socket);
     });
 
-    socket.on('get_players', roomId => {
+    socket.on(SOCKET_CLIENT_EVENTS.getPlayers, payload => {
         try {
+            const roomId = parseRoomIdPayload(payload);
             roomRegistry.assertMembership(roomId, socket.id);
             emitPlayersUpdate(roomId);
         } catch (error) {
@@ -575,12 +572,13 @@ io.on('connection', socket => {
         }
     });
 
-    socket.on('request_admin_status', (roomId, callback) => {
+    socket.on(SOCKET_CLIENT_EVENTS.requestAdminStatus, (payload, callback) => {
         if (typeof callback !== 'function') {
             return;
         }
 
         try {
+            const roomId = parseRoomIdPayload(payload);
             const snapshot = roomRegistry.getSnapshot(roomId, { allowMissing: true });
             const alreadyHasAdmin = snapshot.players.some(player => player.isAdmin);
             callback(!alreadyHasAdmin);

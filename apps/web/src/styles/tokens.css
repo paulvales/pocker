@@ -1,0 +1,30 @@
+:root {
+  --color-ink: #14213d;
+  --color-ink-soft: #44516e;
+  --color-surface: rgba(255, 255, 255, 0.84);
+  --color-surface-strong: #ffffff;
+  --color-surface-muted: rgba(255, 255, 255, 0.55);
+  --color-accent: #f97316;
+  --color-accent-strong: #c2410c;
+  --color-accent-soft: rgba(249, 115, 22, 0.12);
+  --color-border: rgba(20, 33, 61, 0.12);
+  --color-error: #b42318;
+  --color-shadow: rgba(20, 33, 61, 0.16);
+  --gradient-page:
+    radial-gradient(circle at top left, rgba(251, 146, 60, 0.4), transparent 30%),
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.3), transparent 24%),
+    linear-gradient(180deg, #fff7ed 0%, #eff6ff 58%, #f8fafc 100%);
+  --font-body: "Aptos", "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  --font-display: "Aptos Display", "Segoe UI Variable Display", "Segoe UI", sans-serif;
+  --radius-panel: 28px;
+  --radius-pill: 999px;
+  --shadow-panel: 0 24px 64px var(--color-shadow);
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --container-width: min(1120px, calc(100vw - 2rem));
+}

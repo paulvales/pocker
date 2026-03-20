@@ -1,3 +1,8 @@
 /node_modules/
+/apps/web/node_modules/
+/apps/web/dist/
+/apps/web/*.tsbuildinfo
+/apps/web/vite.config.js
+/apps/web/vite.config.d.ts
 .env
 /data/estimation-history.json

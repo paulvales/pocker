@@ -2,9 +2,16 @@ const http = require('http');
 const { newDb } = require('pg-mem');
 const ioClient = require('socket.io-client');
 const packageJson = require('../package.json');
+const {
+  ESTIMATION_HISTORY_DEFAULT_PAGE_SIZE,
+  HTTP_ROUTES,
+  SOCKET_EVENT_NAMES,
+} = require('../packages/contracts');
 
 const historyDb = newDb();
 const { Pool } = historyDb.adapters.createPg();
+const SOCKET_CLIENT_EVENTS = SOCKET_EVENT_NAMES.client;
+const SOCKET_SERVER_EVENTS = SOCKET_EVENT_NAMES.server;
 
 global.__POCKER_HISTORY_STORE_OPTIONS__ = {
   PoolClass: Pool,
@@ -58,11 +65,11 @@ function emitWithAck(client, eventName, payload) {
 }
 
 function joinRoom(client, payload) {
-  return emitWithAck(client, 'join', payload);
+  return emitWithAck(client, SOCKET_CLIENT_EVENTS.join, payload);
 }
 
 function createRoom(client, roomSuffix) {
-  return emitWithAck(client, 'create_room', { roomSuffix });
+  return emitWithAck(client, SOCKET_CLIENT_EVENTS.createRoom, { roomSuffix });
 }
 
 function waitForEvent(client, eventName, predicate = () => true, timeoutMs = 2000) {
@@ -108,13 +115,13 @@ describe('socket server', () => {
   });
 
   test('exposes health and version info over http and serves room paths', async () => {
-    const health = await request(port, '/health');
-    const version = await request(port, '/version');
-    const home = await request(port, '/');
+    const health = await request(port, HTTP_ROUTES.health);
+    const version = await request(port, HTTP_ROUTES.version);
+    const home = await request(port, HTTP_ROUTES.home);
     const roomHome = await request(port, '/backend-sprint-42/');
     const roomRedirect = await request(port, '/backend-sprint-42');
-    const historyPage = await request(port, '/history/');
-    const historyApi = await request(port, '/api/estimation-history');
+    const historyPage = await request(port, HTTP_ROUTES.historyPage);
+    const historyApi = await request(port, HTTP_ROUTES.estimationHistory);
 
     expect(health.statusCode).toBe(200);
     expect(JSON.parse(health.body)).toEqual({
@@ -154,7 +161,7 @@ describe('socket server', () => {
         estimateTypes: [],
         pagination: {
           page: 1,
-          pageSize: 25,
+          pageSize: ESTIMATION_HISTORY_DEFAULT_PAGE_SIZE,
           totalItems: 0,
           totalPages: 1,
           hasPreviousPage: false,
@@ -264,8 +271,12 @@ describe('socket server', () => {
         ok: true,
       }));
 
-      const notePromise = waitForEvent(teammate, 'note_update', message => message === 'hello');
-      const noteAck = emitWithAck(creator, 'note_update', {
+      const notePromise = waitForEvent(
+        teammate,
+        SOCKET_SERVER_EVENTS.noteUpdate,
+        message => message === 'hello',
+      );
+      const noteAck = emitWithAck(creator, SOCKET_CLIENT_EVENTS.noteUpdate, {
         roomId,
         note: 'hello',
       });
@@ -292,7 +303,7 @@ describe('socket server', () => {
         name: 'Admin',
         isAdmin: true,
       });
-      await emitWithAck(creator, 'note_update', { roomId, note });
+      await emitWithAck(creator, SOCKET_CLIENT_EVENTS.noteUpdate, { roomId, note });
 
       const state = await joinRoom(participant, {
         roomId,
@@ -331,7 +342,7 @@ describe('socket server', () => {
         isAdmin: true,
       });
 
-      const updateResult = await emitWithAck(adminClient, 'task_list_update', {
+      const updateResult = await emitWithAck(adminClient, SOCKET_CLIENT_EVENTS.taskListUpdate, {
         roomId,
         items,
       });
@@ -357,8 +368,12 @@ describe('socket server', () => {
         estimationMode: 'points',
       }));
 
-      const nextTaskPromise = waitForEvent(viewerClient, 'task_state_update', state => state.selectedIndex === 1);
-      const selectResultPromise = emitWithAck(adminClient, 'task_select', {
+      const nextTaskPromise = waitForEvent(
+        viewerClient,
+        SOCKET_SERVER_EVENTS.taskStateUpdate,
+        state => state.selectedIndex === 1,
+      );
+      const selectResultPromise = emitWithAck(adminClient, SOCKET_CLIENT_EVENTS.taskSelect, {
         roomId,
         direction: 1,
       });

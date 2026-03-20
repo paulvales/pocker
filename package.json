@@ -5,7 +5,11 @@
   "main": "index.js",
   "scripts": {
     "test": "jest",
-    "start": "node ./index.js"
+    "start": "node ./index.js",
+    "web:dev": "npm --prefix apps/web run dev",
+    "web:build": "npm --prefix apps/web run build",
+    "web:typecheck": "npm --prefix apps/web run typecheck",
+    "web:lint": "npm --prefix apps/web run lint"
   },
   "keywords": [],
   "author": "",
