@@ -7,6 +7,7 @@ const RESERVED_ROOM_IDS = new Set([
   'health',
   'version',
   'history',
+  'settings',
   'index-html',
   'robots-txt',
   'socket-io',

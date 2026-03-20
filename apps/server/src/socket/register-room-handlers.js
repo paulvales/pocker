@@ -32,7 +32,13 @@ function createAckResponder(callback) {
     return typeof callback === 'function' ? callback : () => {};
 }
 
-function registerRoomHandlers({ io, roomRegistry, estimationHistoryStore, config }) {
+function registerRoomHandlers({
+    io,
+    roomRegistry,
+    estimationHistoryStore,
+    config,
+    saasFoundationService,
+}) {
     const youTrackClient = createYouTrackClient(config.integrations.youTrack);
     const reactionClearTimers = new Map();
 
@@ -111,12 +117,22 @@ function registerRoomHandlers({ io, roomRegistry, estimationHistoryStore, config
     }
 
     io.on('connection', socket => {
+        function resolveSaasContext() {
+            return saasFoundationService.resolveSocketContext(socket);
+        }
+
         socket.on(SOCKET_CLIENT_EVENTS.createRoom, (payload, callback) => {
             const respond = createAckResponder(callback);
 
             try {
+                const saasContext = resolveSaasContext();
+                saasFoundationService.assertCanCreateRoom(saasContext);
                 const { roomSuffix } = parseCreateRoomPayload(payload);
                 const createResult = roomRegistry.createRoom({ roomSuffix });
+                saasFoundationService.registerRoom(saasContext, {
+                    roomId: createResult.room.id,
+                    createdAt: createResult.room.createdAt,
+                });
                 respond(createSocketAckSuccess({
                     room: createResult.room,
                 }));
@@ -144,6 +160,11 @@ function registerRoomHandlers({ io, roomRegistry, estimationHistoryStore, config
 
             try {
                 const { roomId, name, isAdmin } = parseJoinPayload(payload);
+                const saasContext = resolveSaasContext();
+                saasFoundationService.assertCanJoinRoom(saasContext, {
+                    roomId,
+                    isAdmin,
+                });
                 const joinResult = roomRegistry.joinRoom({
                     roomId,
                     socketId: socket.id,
@@ -161,6 +182,10 @@ function registerRoomHandlers({ io, roomRegistry, estimationHistoryStore, config
 
                 socket.join(joinResult.roomId);
                 socket.data.currentRoomId = joinResult.roomId;
+                saasFoundationService.registerRoom(saasContext, {
+                    roomId: joinResult.room.id,
+                    createdAt: joinResult.room.createdAt,
+                });
                 const snapshot = emitPlayersUpdate(joinResult.roomId);
 
                 respond(createSocketAckSuccess(createRoomSnapshotPayload(snapshot)));
@@ -364,7 +389,11 @@ function registerRoomHandlers({ io, roomRegistry, estimationHistoryStore, config
                 const roomId = parseRoomIdPayload(payload);
                 const snapshot = roomRegistry.getSnapshot(roomId, { allowMissing: true });
                 const alreadyHasAdmin = snapshot.players.some(player => player.isAdmin);
-                callback(!alreadyHasAdmin);
+                const saasContext = resolveSaasContext();
+                callback(!alreadyHasAdmin && saasFoundationService.canRequestAdminSeat(
+                    saasContext,
+                    roomId,
+                ));
             } catch (error) {
                 callback(false);
             }

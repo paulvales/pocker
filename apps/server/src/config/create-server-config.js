@@ -5,6 +5,45 @@ function normalizeText(value) {
     return String(value || '').trim();
 }
 
+function normalizeNullableText(value) {
+    const normalizedValue = normalizeText(value);
+    return normalizedValue || null;
+}
+
+function normalizeBoolean(value, fallback = false) {
+    if (value === '' || value === null || typeof value === 'undefined') {
+        return fallback;
+    }
+
+    return value === true || value === 'true' || value === 1 || value === '1';
+}
+
+function normalizePositiveInteger(value, fallback) {
+    const parsed = Number.parseInt(String(value ?? ''), 10);
+    if (!Number.isFinite(parsed)) {
+        return fallback;
+    }
+
+    return Math.max(1, parsed);
+}
+
+function normalizeStringArray(value) {
+    if (Array.isArray(value)) {
+        return value
+            .map(item => normalizeText(item))
+            .filter(Boolean);
+    }
+
+    if (typeof value === 'string') {
+        return value
+            .split(',')
+            .map(item => normalizeText(item))
+            .filter(Boolean);
+    }
+
+    return [];
+}
+
 function normalizeFrontendMode(value) {
     return value === 'react' ? 'react' : 'legacy';
 }
@@ -37,6 +76,120 @@ function createServerConfig(options = {}) {
                     ?? 'Story points',
                 ),
             },
+        },
+        saas: {
+            workspace: {
+                id: normalizeText(
+                    options.saasWorkspaceId
+                    ?? process.env.POCKER_SAAS_WORKSPACE_ID
+                    ?? 'workspace-core',
+                ),
+                slug: normalizeText(
+                    options.saasWorkspaceSlug
+                    ?? process.env.POCKER_SAAS_WORKSPACE_SLUG
+                    ?? 'core',
+                ),
+                name: normalizeText(
+                    options.saasWorkspaceName
+                    ?? process.env.POCKER_SAAS_WORKSPACE_NAME
+                    ?? 'Pocker Core Workspace',
+                ),
+                guestMode: normalizeText(
+                    options.saasGuestMode
+                    ?? process.env.POCKER_SAAS_GUEST_MODE
+                    ?? 'open',
+                ),
+                roomCreationMode: normalizeText(
+                    options.saasRoomCreationMode
+                    ?? process.env.POCKER_SAAS_ROOM_CREATION_MODE
+                    ?? 'member_or_guest',
+                ),
+                guestAdminMode: normalizeText(
+                    options.saasGuestAdminMode
+                    ?? process.env.POCKER_SAAS_GUEST_ADMIN_MODE
+                    ?? 'guest_or_member',
+                ),
+                billingReady: normalizeBoolean(
+                    options.saasBillingReady ?? process.env.POCKER_SAAS_BILLING_READY,
+                    true,
+                ),
+            },
+            defaultActor: {
+                id: normalizeText(
+                    options.saasDefaultActorId
+                    ?? process.env.POCKER_SAAS_DEFAULT_ACTOR_ID
+                    ?? 'owner-user',
+                ),
+                name: normalizeText(
+                    options.saasDefaultActorName
+                    ?? process.env.POCKER_SAAS_DEFAULT_ACTOR_NAME
+                    ?? 'Workspace owner',
+                ),
+                email: normalizeNullableText(
+                    options.saasDefaultActorEmail
+                    ?? process.env.POCKER_SAAS_DEFAULT_ACTOR_EMAIL
+                    ?? 'owner@example.com',
+                ),
+                kind: normalizeText(
+                    options.saasDefaultActorKind
+                    ?? process.env.POCKER_SAAS_DEFAULT_ACTOR_KIND
+                    ?? 'member',
+                ),
+                role: normalizeText(
+                    options.saasDefaultActorRole
+                    ?? process.env.POCKER_SAAS_DEFAULT_ACTOR_ROLE
+                    ?? 'owner',
+                ),
+            },
+            memberships: Array.isArray(options.saasMemberships)
+                ? options.saasMemberships
+                : [],
+            invites: Array.isArray(options.saasInvites)
+                ? options.saasInvites
+                : [],
+            billing: {
+                plan: normalizeText(
+                    options.saasBillingPlan
+                    ?? process.env.POCKER_SAAS_BILLING_PLAN
+                    ?? 'free',
+                ),
+                status: normalizeText(
+                    options.saasBillingStatus
+                    ?? process.env.POCKER_SAAS_BILLING_STATUS
+                    ?? 'ready',
+                ),
+                billingContactEmail: normalizeNullableText(
+                    options.saasBillingContactEmail
+                    ?? process.env.POCKER_SAAS_BILLING_CONTACT_EMAIL
+                    ?? 'billing@example.com',
+                ),
+                seatLimit: normalizePositiveInteger(
+                    options.saasSeatLimit
+                    ?? process.env.POCKER_SAAS_SEAT_LIMIT,
+                    25,
+                ),
+                meteredFeatures: normalizeStringArray(
+                    options.saasMeteredFeatures
+                    ?? process.env.POCKER_SAAS_METERED_FEATURES,
+                ),
+            },
+            roomDefaults: {
+                visibility: normalizeText(
+                    options.saasRoomVisibility
+                    ?? process.env.POCKER_SAAS_ROOM_VISIBILITY
+                    ?? 'workspace',
+                ),
+                guestMode: normalizeText(
+                    options.saasRoomGuestMode
+                    ?? process.env.POCKER_SAAS_ROOM_GUEST_MODE
+                    ?? options.saasGuestMode
+                    ?? process.env.POCKER_SAAS_GUEST_MODE
+                    ?? 'open',
+                ),
+            },
+            settingsSections: Array.isArray(options.saasSettingsSections)
+                ? options.saasSettingsSections
+                : [],
         },
     };
 }

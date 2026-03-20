@@ -4,6 +4,7 @@ const {
     HTTP_ROUTES,
     createHealthPayload,
     createHistoryResponse,
+    createSaasBootstrapPayload,
     createVersionPayload,
     getErrorCode,
     parseHistoryFilters,
@@ -103,7 +104,38 @@ function getHistoryPageCandidates(config) {
     return historyCandidates;
 }
 
-function createHttpRequestHandler({ config, roomRegistry, estimationHistoryStore }) {
+function getSettingsPageCandidates(config) {
+    if (config.frontend.mode !== 'react') {
+        return [];
+    }
+
+    return [{
+        fileName: 'index.html',
+        filePath: config.frontend.reactEntryFilePath,
+    }];
+}
+
+function getSettingsStatusCode(errorCode) {
+    if (errorCode === ERROR_CODES.workspaceNotFound) {
+        return 404;
+    }
+
+    if (
+        errorCode === ERROR_CODES.forbidden
+        || errorCode === ERROR_CODES.unauthorized
+    ) {
+        return 403;
+    }
+
+    return 500;
+}
+
+function createHttpRequestHandler({
+    config,
+    roomRegistry,
+    estimationHistoryStore,
+    saasFoundationService,
+}) {
     return async function handleRequest(req, res) {
         try {
             const requestUrl = new URL(req.url || '/', 'http://localhost');
@@ -141,6 +173,48 @@ function createHttpRequestHandler({ config, roomRegistry, estimationHistoryStore
 
             if (pathname === HTTP_ROUTES.historyPage || pathname === HTTP_ROUTES.historyHtml) {
                 await serveHtmlPage(res, getHistoryPageCandidates(config), config.versionLabel);
+                return;
+            }
+
+            if (pathname === HTTP_ROUTES.settingsBootstrap) {
+                try {
+                    const context = saasFoundationService.resolveHttpContext(req);
+                    respondJson(
+                        res,
+                        200,
+                        createSaasBootstrapPayload(
+                            saasFoundationService.getSettingsBootstrap(context),
+                        ),
+                    );
+                } catch (error) {
+                    const errorCode = getErrorCode(error, ERROR_CODES.settingsReadFailed);
+                    respondJson(res, getSettingsStatusCode(errorCode), {
+                        error: errorCode,
+                    });
+                }
+                return;
+            }
+
+            if (pathname === HTTP_ROUTES.settings) {
+                if (config.frontend.mode === 'react') {
+                    res.writeHead(302, { Location: HTTP_ROUTES.settingsPage });
+                    res.end();
+                    return;
+                }
+
+                res.writeHead(404);
+                res.end('Not found');
+                return;
+            }
+
+            if (pathname === HTTP_ROUTES.settingsPage) {
+                if (config.frontend.mode !== 'react') {
+                    res.writeHead(404);
+                    res.end('Not found');
+                    return;
+                }
+
+                await serveHtmlPage(res, getSettingsPageCandidates(config), config.versionLabel);
                 return;
             }
 

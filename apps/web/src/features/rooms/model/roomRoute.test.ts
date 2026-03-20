@@ -16,6 +16,7 @@ describe('roomRoute', () => {
 
   it('rejects reserved and malformed slugs', () => {
     expect(isValidRoomSlug('history')).toBe(false);
+    expect(isValidRoomSlug('settings')).toBe(false);
     expect(isValidRoomSlug('socket.io')).toBe(false);
     expect(isValidRoomSlug('   ')).toBe(false);
     expect(isValidRoomSlug('team sync')).toBe(true);

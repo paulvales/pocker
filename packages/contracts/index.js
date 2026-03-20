@@ -1,12 +1,15 @@
 const HTTP_ROUTES = Object.freeze({
   home: '/',
   homeHtml: '/index.html',
+  settings: '/settings',
+  settingsPage: '/settings/',
   health: '/health',
   version: '/version',
   history: '/history',
   historyPage: '/history/',
   historyHtml: '/history.html',
   estimationHistory: '/api/estimation-history',
+  settingsBootstrap: '/api/settings/bootstrap',
 });
 
 const SOCKET_EVENT_NAMES = Object.freeze({
@@ -41,7 +44,10 @@ const ERROR_CODES = Object.freeze({
   unknown: 'UNKNOWN_ERROR',
   internalServerError: 'INTERNAL_SERVER_ERROR',
   historyReadFailed: 'HISTORY_READ_FAILED',
+  settingsReadFailed: 'SETTINGS_READ_FAILED',
   forbidden: 'FORBIDDEN',
+  unauthorized: 'UNAUTHORIZED',
+  workspaceNotFound: 'WORKSPACE_NOT_FOUND',
   roomSuffixRequired: 'ROOM_SUFFIX_REQUIRED',
   roomSuffixInvalid: 'ROOM_SUFFIX_INVALID',
   roomAlreadyExists: 'ROOM_ALREADY_EXISTS',
@@ -325,6 +331,207 @@ function normalizePagination(value) {
   };
 }
 
+function normalizeWorkspaceRole(value) {
+  const normalizedValue = normalizeText(value).toLowerCase();
+  if (normalizedValue === 'owner' || normalizedValue === 'admin' || normalizedValue === 'billing') {
+    return normalizedValue;
+  }
+
+  return 'member';
+}
+
+function normalizeMemberKind(value) {
+  return normalizeText(value).toLowerCase() === 'guest' ? 'guest' : 'member';
+}
+
+function normalizeMembershipStatus(value) {
+  return normalizeText(value).toLowerCase() === 'invited' ? 'invited' : 'active';
+}
+
+function normalizeGuestMode(value) {
+  return normalizeText(value).toLowerCase() === 'invite_only' ? 'invite_only' : 'open';
+}
+
+function normalizeRoomCreationMode(value) {
+  return normalizeText(value).toLowerCase() === 'member_only'
+    ? 'member_only'
+    : 'member_or_guest';
+}
+
+function normalizeGuestAdminMode(value) {
+  return normalizeText(value).toLowerCase() === 'member_only'
+    ? 'member_only'
+    : 'guest_or_member';
+}
+
+function normalizeInviteKind(value) {
+  return normalizeText(value).toLowerCase() === 'room_guest'
+    ? 'room_guest'
+    : 'workspace_member';
+}
+
+function normalizeInviteRole(value) {
+  return normalizeText(value).toLowerCase() === 'guest' ? 'guest' : 'member';
+}
+
+function normalizeInviteStatus(value) {
+  const normalizedValue = normalizeText(value).toLowerCase();
+  if (normalizedValue === 'revoked' || normalizedValue === 'expired') {
+    return normalizedValue;
+  }
+
+  return 'active';
+}
+
+function normalizeRoomOwnerType(value) {
+  const normalizedValue = normalizeText(value).toLowerCase();
+  if (normalizedValue === 'guest' || normalizedValue === 'system') {
+    return normalizedValue;
+  }
+
+  return 'member';
+}
+
+function normalizeRoomVisibility(value) {
+  return normalizeText(value).toLowerCase() === 'workspace'
+    ? 'workspace'
+    : 'guest_link';
+}
+
+function normalizeBillingPlan(value) {
+  const normalizedValue = normalizeText(value).toLowerCase();
+  if (normalizedValue === 'team' || normalizedValue === 'enterprise') {
+    return normalizedValue;
+  }
+
+  return 'free';
+}
+
+function normalizeBillingStatus(value) {
+  const normalizedValue = normalizeText(value).toLowerCase();
+  if (
+    normalizedValue === 'trialing'
+    || normalizedValue === 'active'
+    || normalizedValue === 'past_due'
+    || normalizedValue === 'inactive'
+  ) {
+    return normalizedValue;
+  }
+
+  return 'ready';
+}
+
+function normalizeSettingsSectionStatus(value) {
+  const normalizedValue = normalizeText(value).toLowerCase();
+  if (normalizedValue === 'planned' || normalizedValue === 'restricted') {
+    return normalizedValue;
+  }
+
+  return 'available';
+}
+
+function normalizeWorkspaceActor(value) {
+  const payload = asRecord(value);
+
+  return {
+    id: normalizeText(payload.id),
+    name: normalizeText(payload.name),
+    email: normalizeNullableText(payload.email),
+    kind: normalizeMemberKind(payload.kind),
+    role: payload.role ? normalizeWorkspaceRole(payload.role) : null,
+    permissions: normalizeStringArray(payload.permissions),
+  };
+}
+
+function normalizeWorkspaceSummary(value) {
+  const payload = asRecord(value);
+
+  return {
+    id: normalizeText(payload.id),
+    slug: normalizeText(payload.slug),
+    name: normalizeText(payload.name),
+    guestMode: normalizeGuestMode(payload.guestMode),
+    roomCreationMode: normalizeRoomCreationMode(payload.roomCreationMode),
+    guestAdminMode: normalizeGuestAdminMode(payload.guestAdminMode),
+    billingReady: Boolean(payload.billingReady),
+  };
+}
+
+function normalizeWorkspaceMembership(value) {
+  const payload = asRecord(value);
+
+  return {
+    userId: normalizeText(payload.userId),
+    name: normalizeText(payload.name),
+    email: normalizeNullableText(payload.email),
+    role: normalizeWorkspaceRole(payload.role),
+    status: normalizeMembershipStatus(payload.status),
+  };
+}
+
+function normalizeWorkspaceInvite(value) {
+  const payload = asRecord(value);
+
+  return {
+    id: normalizeText(payload.id),
+    code: normalizeText(payload.code),
+    kind: normalizeInviteKind(payload.kind),
+    role: normalizeInviteRole(payload.role),
+    status: normalizeInviteStatus(payload.status),
+    workspaceId: normalizeText(payload.workspaceId),
+    roomId: normalizeNullableText(payload.roomId),
+  };
+}
+
+function normalizeWorkspaceRoom(value) {
+  const payload = asRecord(value);
+
+  return {
+    id: normalizeText(payload.id),
+    workspaceId: normalizeText(payload.workspaceId),
+    ownerUserId: normalizeNullableText(payload.ownerUserId),
+    ownerType: normalizeRoomOwnerType(payload.ownerType),
+    visibility: normalizeRoomVisibility(payload.visibility),
+    guestMode: normalizeGuestMode(payload.guestMode),
+    createdAt: normalizeLooseText(payload.createdAt),
+  };
+}
+
+function normalizeBillingSummary(value) {
+  const payload = asRecord(value);
+
+  return {
+    plan: normalizeBillingPlan(payload.plan),
+    status: normalizeBillingStatus(payload.status),
+    billingContactEmail: normalizeNullableText(payload.billingContactEmail),
+    seatLimit: normalizePositiveInteger(payload.seatLimit, 0, { min: 0 }),
+    seatsUsed: normalizePositiveInteger(payload.seatsUsed, 0, { min: 0 }),
+    meteredFeatures: normalizeStringArray(payload.meteredFeatures),
+  };
+}
+
+function normalizeWorkspaceAuthorization(value) {
+  const payload = asRecord(value);
+
+  return {
+    canManageWorkspace: Boolean(payload.canManageWorkspace),
+    canManageMembers: Boolean(payload.canManageMembers),
+    canManageBilling: Boolean(payload.canManageBilling),
+    canManageRooms: Boolean(payload.canManageRooms),
+  };
+}
+
+function normalizeSettingsSection(value) {
+  const payload = asRecord(value);
+
+  return {
+    id: normalizeText(payload.id),
+    title: normalizeText(payload.title),
+    description: normalizeLooseText(payload.description),
+    status: normalizeSettingsSectionStatus(payload.status),
+  };
+}
+
 function createHistoryResponse({ items = [], meta = {} } = {}) {
   const normalizedMeta = asRecord(meta);
 
@@ -336,6 +543,29 @@ function createHistoryResponse({ items = [], meta = {} } = {}) {
       estimateTypes: normalizeStringArray(normalizedMeta.estimateTypes),
       pagination: normalizePagination(normalizedMeta.pagination),
     },
+  };
+}
+
+function createSaasBootstrapPayload(value = {}) {
+  const payload = asRecord(value);
+
+  return {
+    actor: normalizeWorkspaceActor(payload.actor),
+    workspace: normalizeWorkspaceSummary(payload.workspace),
+    memberships: Array.isArray(payload.memberships)
+      ? payload.memberships.map(normalizeWorkspaceMembership)
+      : [],
+    invites: Array.isArray(payload.invites)
+      ? payload.invites.map(normalizeWorkspaceInvite)
+      : [],
+    rooms: Array.isArray(payload.rooms)
+      ? payload.rooms.map(normalizeWorkspaceRoom)
+      : [],
+    billing: normalizeBillingSummary(payload.billing),
+    authorization: normalizeWorkspaceAuthorization(payload.authorization),
+    settingsSections: Array.isArray(payload.settingsSections)
+      ? payload.settingsSections.map(normalizeSettingsSection)
+      : [],
   };
 }
 
@@ -383,6 +613,7 @@ module.exports = {
   SOCKET_EVENT_NAMES,
   createHealthPayload,
   createHistoryResponse,
+  createSaasBootstrapPayload,
   createRoomSnapshotPayload,
   createSocketAckError,
   createSocketAckSuccess,

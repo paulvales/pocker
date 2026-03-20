@@ -6,6 +6,7 @@ const {
   HTTP_ROUTES,
   SOCKET_EVENT_NAMES,
   createHistoryResponse,
+  createSaasBootstrapPayload,
   createSocketAckError,
   createSocketAckSuccess,
   parseHistoryFilters,
@@ -16,6 +17,7 @@ const {
 describe('shared contracts', () => {
   test('exposes stable HTTP routes and socket event names', () => {
     expect(HTTP_ROUTES.estimationHistory).toBe('/api/estimation-history');
+    expect(HTTP_ROUTES.settingsBootstrap).toBe('/api/settings/bootstrap');
     expect(SOCKET_EVENT_NAMES.client.join).toBe('join');
     expect(SOCKET_EVENT_NAMES.server.taskStateUpdate).toBe('task_state_update');
   });
@@ -130,6 +132,152 @@ describe('shared contracts', () => {
     expect(createSocketAckError(new Error(ERROR_CODES.roomNotFound))).toEqual({
       ok: false,
       error: ERROR_CODES.roomNotFound,
+    });
+  });
+
+  test('creates normalized SaaS bootstrap payloads', () => {
+    expect(createSaasBootstrapPayload({
+      actor: {
+        id: ' owner-user ',
+        name: ' Workspace owner ',
+        email: 'owner@example.com',
+        kind: 'member',
+        role: 'owner',
+        permissions: ['settings:read', 'rooms:create', 'settings:read'],
+      },
+      workspace: {
+        id: ' workspace-core ',
+        slug: ' core ',
+        name: ' Core Workspace ',
+        guestMode: 'invite_only',
+        roomCreationMode: 'member_only',
+        guestAdminMode: 'member_only',
+        billingReady: true,
+      },
+      memberships: [
+        {
+          userId: ' owner-user ',
+          name: ' Workspace owner ',
+          email: 'owner@example.com',
+          role: 'owner',
+          status: 'active',
+        },
+      ],
+      invites: [
+        {
+          id: ' invite-1 ',
+          code: ' TEAM-ACCESS ',
+          kind: 'workspace_member',
+          role: 'member',
+          status: 'active',
+          workspaceId: ' workspace-core ',
+          roomId: null,
+        },
+      ],
+      rooms: [
+        {
+          id: ' alpha-room ',
+          workspaceId: ' workspace-core ',
+          ownerUserId: ' owner-user ',
+          ownerType: 'member',
+          visibility: 'workspace',
+          guestMode: 'open',
+          createdAt: '2026-03-20T12:00:00.000Z',
+        },
+      ],
+      billing: {
+        plan: 'free',
+        status: 'ready',
+        billingContactEmail: 'billing@example.com',
+        seatLimit: 25,
+        seatsUsed: 3,
+        meteredFeatures: ['active_rooms', 'integrations'],
+      },
+      authorization: {
+        canManageWorkspace: true,
+        canManageMembers: true,
+        canManageBilling: true,
+        canManageRooms: true,
+      },
+      settingsSections: [
+        {
+          id: ' workspace ',
+          title: ' Workspace ',
+          description: 'Tenant identity.',
+          status: 'available',
+        },
+      ],
+    })).toEqual({
+      actor: {
+        id: 'owner-user',
+        name: 'Workspace owner',
+        email: 'owner@example.com',
+        kind: 'member',
+        role: 'owner',
+        permissions: ['settings:read', 'rooms:create'],
+      },
+      workspace: {
+        id: 'workspace-core',
+        slug: 'core',
+        name: 'Core Workspace',
+        guestMode: 'invite_only',
+        roomCreationMode: 'member_only',
+        guestAdminMode: 'member_only',
+        billingReady: true,
+      },
+      memberships: [
+        {
+          userId: 'owner-user',
+          name: 'Workspace owner',
+          email: 'owner@example.com',
+          role: 'owner',
+          status: 'active',
+        },
+      ],
+      invites: [
+        {
+          id: 'invite-1',
+          code: 'TEAM-ACCESS',
+          kind: 'workspace_member',
+          role: 'member',
+          status: 'active',
+          workspaceId: 'workspace-core',
+          roomId: null,
+        },
+      ],
+      rooms: [
+        {
+          id: 'alpha-room',
+          workspaceId: 'workspace-core',
+          ownerUserId: 'owner-user',
+          ownerType: 'member',
+          visibility: 'workspace',
+          guestMode: 'open',
+          createdAt: '2026-03-20T12:00:00.000Z',
+        },
+      ],
+      billing: {
+        plan: 'free',
+        status: 'ready',
+        billingContactEmail: 'billing@example.com',
+        seatLimit: 25,
+        seatsUsed: 3,
+        meteredFeatures: ['active_rooms', 'integrations'],
+      },
+      authorization: {
+        canManageWorkspace: true,
+        canManageMembers: true,
+        canManageBilling: true,
+        canManageRooms: true,
+      },
+      settingsSections: [
+        {
+          id: 'workspace',
+          title: 'Workspace',
+          description: 'Tenant identity.',
+          status: 'available',
+        },
+      ],
     });
   });
 });

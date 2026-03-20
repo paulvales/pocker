@@ -1,4 +1,23 @@
 export type EstimationMode = 'points' | 'hours';
+export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'billing';
+export type WorkspaceMemberKind = 'member' | 'guest';
+export type MembershipStatus = 'active' | 'invited';
+export type GuestMode = 'open' | 'invite_only';
+export type RoomCreationMode = 'member_or_guest' | 'member_only';
+export type GuestAdminMode = 'guest_or_member' | 'member_only';
+export type InviteKind = 'workspace_member' | 'room_guest';
+export type InviteRole = 'member' | 'guest';
+export type InviteStatus = 'active' | 'revoked' | 'expired';
+export type RoomOwnerType = 'member' | 'guest' | 'system';
+export type RoomVisibility = 'workspace' | 'guest_link';
+export type BillingPlan = 'free' | 'team' | 'enterprise';
+export type BillingStatus =
+  | 'ready'
+  | 'trialing'
+  | 'active'
+  | 'past_due'
+  | 'inactive';
+export type SettingsSectionStatus = 'available' | 'planned' | 'restricted';
 
 export type PublicRoomDto = {
   id: string;
@@ -69,15 +88,99 @@ export type HistoryResponseDto = {
   };
 };
 
+export type WorkspaceActorDto = {
+  id: string;
+  name: string;
+  email: string | null;
+  kind: WorkspaceMemberKind;
+  role: WorkspaceRole | null;
+  permissions: string[];
+};
+
+export type WorkspaceSummaryDto = {
+  id: string;
+  slug: string;
+  name: string;
+  guestMode: GuestMode;
+  roomCreationMode: RoomCreationMode;
+  guestAdminMode: GuestAdminMode;
+  billingReady: boolean;
+};
+
+export type WorkspaceMembershipDto = {
+  userId: string;
+  name: string;
+  email: string | null;
+  role: WorkspaceRole;
+  status: MembershipStatus;
+};
+
+export type WorkspaceInviteDto = {
+  id: string;
+  code: string;
+  kind: InviteKind;
+  role: InviteRole;
+  status: InviteStatus;
+  workspaceId: string;
+  roomId: string | null;
+};
+
+export type WorkspaceRoomDto = {
+  id: string;
+  workspaceId: string;
+  ownerUserId: string | null;
+  ownerType: RoomOwnerType;
+  visibility: RoomVisibility;
+  guestMode: GuestMode;
+  createdAt: string;
+};
+
+export type BillingSummaryDto = {
+  plan: BillingPlan;
+  status: BillingStatus;
+  billingContactEmail: string | null;
+  seatLimit: number;
+  seatsUsed: number;
+  meteredFeatures: string[];
+};
+
+export type WorkspaceAuthorizationDto = {
+  canManageWorkspace: boolean;
+  canManageMembers: boolean;
+  canManageBilling: boolean;
+  canManageRooms: boolean;
+};
+
+export type SettingsSectionDto = {
+  id: string;
+  title: string;
+  description: string;
+  status: SettingsSectionStatus;
+};
+
+export type SaasBootstrapDto = {
+  actor: WorkspaceActorDto;
+  workspace: WorkspaceSummaryDto;
+  memberships: WorkspaceMembershipDto[];
+  invites: WorkspaceInviteDto[];
+  rooms: WorkspaceRoomDto[];
+  billing: BillingSummaryDto;
+  authorization: WorkspaceAuthorizationDto;
+  settingsSections: SettingsSectionDto[];
+};
+
 export const HTTP_ROUTES: Readonly<{
   home: '/';
   homeHtml: '/index.html';
+  settings: '/settings';
+  settingsPage: '/settings/';
   health: '/health';
   version: '/version';
   history: '/history';
   historyPage: '/history/';
   historyHtml: '/history.html';
   estimationHistory: '/api/estimation-history';
+  settingsBootstrap: '/api/settings/bootstrap';
 }>;
 
 export const SOCKET_EVENT_NAMES: Readonly<{
@@ -134,6 +237,7 @@ export function createVersionPayload(input: {
 
 export function createRoomSnapshotPayload(value?: unknown): RoomSnapshotDto;
 export function createHistoryResponse(value?: unknown): HistoryResponseDto;
+export function createSaasBootstrapPayload(value?: unknown): SaasBootstrapDto;
 
 export function createSocketAckSuccess<T extends Record<string, unknown>>(
   payload?: T,

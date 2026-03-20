@@ -24,12 +24,14 @@ global.__POCKER_HISTORY_STORE_OPTIONS__ = {
 const { createServerApp, estimationHistoryStore, io, server } = require('..');
 delete global.__POCKER_HISTORY_STORE_OPTIONS__;
 
-function request(port, pathname) {
+function request(port, pathname, options = {}) {
   return new Promise((resolve, reject) => {
-    const req = http.get({
+    const req = http.request({
       host: '127.0.0.1',
       port,
       path: pathname,
+      method: options.method || 'GET',
+      headers: options.headers || {},
     }, res => {
       let body = '';
       res.setEncoding('utf8');
@@ -46,12 +48,19 @@ function request(port, pathname) {
     });
 
     req.on('error', reject);
+    if (options.body) {
+      req.write(options.body);
+    }
+    req.end();
   });
 }
 
-function connectClient(port) {
+function connectClient(port, options = {}) {
   return new Promise((resolve, reject) => {
-    const client = ioClient(`http://localhost:${port}`);
+    const client = ioClient(`http://localhost:${port}`, {
+      auth: options.auth,
+      extraHeaders: options.extraHeaders,
+    });
 
     client.once('connect', () => resolve(client));
     client.once('connect_error', error => {
@@ -220,6 +229,192 @@ describe('socket server', () => {
         reactApp.server.close(resolve);
       });
       await fs.rm(tempProjectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('serves React settings entry and redirects /settings in react mode', async () => {
+    const tempProjectRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'pocker-react-settings-'),
+    );
+    const reactDistDirectory = path.join(tempProjectRoot, 'apps', 'web', 'dist');
+    const reactEntryFile = path.join(reactDistDirectory, 'index.html');
+
+    await fs.mkdir(reactDistDirectory, { recursive: true });
+    await fs.writeFile(
+      reactEntryFile,
+      '<!doctype html><html><body><div id="root"></div></body></html>',
+      'utf8',
+    );
+
+    const reactApp = createServerApp({
+      frontendMode: 'react',
+      port: 0,
+      projectRoot: tempProjectRoot,
+      estimationHistoryStore,
+    });
+
+    let reactPort = 0;
+
+    try {
+      await new Promise((resolve) => {
+        reactApp.server.listen(() => {
+          reactPort = reactApp.server.address().port;
+          resolve();
+        });
+      });
+
+      const settingsRoute = await request(reactPort, HTTP_ROUTES.settings);
+      const settingsPage = await request(reactPort, HTTP_ROUTES.settingsPage);
+
+      expect(settingsRoute.statusCode).toBe(302);
+      expect(settingsRoute.headers.location).toBe(HTTP_ROUTES.settingsPage);
+
+      expect(settingsPage.statusCode).toBe(200);
+      expect(settingsPage.body).toContain('<div id="root"></div>');
+    } finally {
+      reactApp.io.close();
+      await new Promise((resolve) => {
+        reactApp.server.close(resolve);
+      });
+      await fs.rm(tempProjectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('returns SaaS bootstrap data, rejects guest settings access and tracks room metadata', async () => {
+    const bootstrapBefore = await request(port, HTTP_ROUTES.settingsBootstrap);
+
+    expect(bootstrapBefore.statusCode).toBe(200);
+    expect(JSON.parse(bootstrapBefore.body)).toEqual(expect.objectContaining({
+      actor: expect.objectContaining({
+        id: 'owner-user',
+        kind: 'member',
+        role: 'owner',
+      }),
+      workspace: expect.objectContaining({
+        id: 'workspace-core',
+        slug: 'core',
+      }),
+      billing: expect.objectContaining({
+        plan: 'free',
+        status: 'ready',
+      }),
+      authorization: expect.objectContaining({
+        canManageWorkspace: true,
+        canManageMembers: true,
+        canManageBilling: true,
+        canManageRooms: true,
+      }),
+    }));
+
+    const guestSettings = await request(port, HTTP_ROUTES.settingsBootstrap, {
+      headers: {
+        'x-pocker-actor-id': 'guest-http-1',
+        'x-pocker-actor-kind': 'guest',
+      },
+    });
+    const missingWorkspace = await request(port, HTTP_ROUTES.settingsBootstrap, {
+      headers: {
+        'x-pocker-workspace-id': 'missing-workspace',
+      },
+    });
+
+    expect(guestSettings.statusCode).toBe(403);
+    expect(JSON.parse(guestSettings.body)).toEqual({
+      error: 'FORBIDDEN',
+    });
+
+    expect(missingWorkspace.statusCode).toBe(404);
+    expect(JSON.parse(missingWorkspace.body)).toEqual({
+      error: 'WORKSPACE_NOT_FOUND',
+    });
+
+    const creator = await connectClient(port);
+    const roomSuffix = `saas-foundation-${Date.now()}`;
+
+    try {
+      const createResult = await createRoom(creator, roomSuffix);
+      expect(createResult).toEqual(expect.objectContaining({
+        ok: true,
+        room: expect.objectContaining({
+          id: roomSuffix,
+        }),
+      }));
+    } finally {
+      creator.close();
+    }
+
+    const bootstrapAfter = await request(port, HTTP_ROUTES.settingsBootstrap);
+    expect(bootstrapAfter.statusCode).toBe(200);
+    expect(JSON.parse(bootstrapAfter.body).rooms).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: roomSuffix,
+          workspaceId: 'workspace-core',
+          ownerUserId: 'owner-user',
+          ownerType: 'member',
+          visibility: 'workspace',
+          guestMode: 'open',
+        }),
+      ]),
+    );
+  });
+
+  test('blocks guest admin joins when the workspace requires member admins', async () => {
+    const restrictedApp = createServerApp({
+      port: 0,
+      estimationHistoryStore,
+      saasGuestAdminMode: 'member_only',
+    });
+
+    let restrictedPort = 0;
+
+    try {
+      await new Promise((resolve) => {
+        restrictedApp.server.listen(() => {
+          restrictedPort = restrictedApp.server.address().port;
+          resolve();
+        });
+      });
+
+      const memberClient = await connectClient(restrictedPort);
+      const guestClient = await connectClient(restrictedPort, {
+        auth: {
+          actorId: 'guest-joiner',
+          actorKind: 'guest',
+        },
+      });
+
+      try {
+        const createResult = await createRoom(memberClient, 'member-admin-room');
+        const roomId = createResult.room.id;
+
+        await joinRoom(memberClient, {
+          roomId,
+          name: 'Owner',
+          isAdmin: true,
+        });
+
+        await expect(joinRoom(guestClient, {
+          roomId,
+          name: 'Guest',
+          isAdmin: true,
+        })).resolves.toEqual({
+          ok: false,
+          error: 'FORBIDDEN',
+        });
+
+        await expect(
+          emitWithAck(guestClient, SOCKET_CLIENT_EVENTS.requestAdminStatus, roomId),
+        ).resolves.toBe(false);
+      } finally {
+        memberClient.close();
+        guestClient.close();
+      }
+    } finally {
+      restrictedApp.io.close();
+      await new Promise((resolve) => {
+        restrictedApp.server.close(resolve);
+      });
     }
   });
 

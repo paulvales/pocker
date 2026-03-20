@@ -258,6 +258,233 @@ select {
   box-shadow: none;
 }
 
+.settings-page-grid {
+  gap: var(--space-4);
+}
+
+.settings-hero-panel,
+.settings-summary-panel,
+.settings-policy-panel,
+.settings-list-panel,
+.settings-rooms-panel {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.settings-summary-header,
+.settings-panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.settings-status-copy {
+  max-width: 38rem;
+}
+
+.settings-identity-badge {
+  min-width: 14rem;
+  padding: var(--space-4);
+  border: 1px solid rgba(20, 33, 61, 0.08);
+  border-radius: 1.1rem;
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.settings-identity-badge strong {
+  display: block;
+  margin-top: 0.2rem;
+}
+
+.settings-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-3);
+}
+
+.settings-stat-card,
+.settings-permission-tile,
+.settings-room-card {
+  padding: var(--space-4);
+  border: 1px solid rgba(20, 33, 61, 0.08);
+  border-radius: 1.1rem;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.settings-stat-card strong,
+.settings-permission-tile strong {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 1.15rem;
+}
+
+.settings-two-column-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.settings-definition-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.settings-definition-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid rgba(20, 33, 61, 0.08);
+}
+
+.settings-definition-list dt,
+.settings-definition-list dd {
+  margin: 0;
+}
+
+.settings-definition-list dt {
+  color: var(--color-ink-soft);
+}
+
+.settings-definition-list dd {
+  text-align: right;
+}
+
+.settings-definition-list-compact {
+  gap: var(--space-2);
+}
+
+.settings-definition-list-compact div {
+  padding-bottom: var(--space-2);
+}
+
+.settings-permission-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-3);
+}
+
+.settings-permission-tile.is-enabled {
+  border-color: rgba(34, 197, 94, 0.24);
+  background: rgba(240, 253, 244, 0.9);
+}
+
+.settings-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.settings-tag,
+.settings-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0 0.8rem;
+  border-radius: 999px;
+  background: rgba(20, 33, 61, 0.08);
+  color: var(--color-ink);
+  font-size: 0.9rem;
+}
+
+.settings-pill-muted {
+  background: rgba(249, 115, 22, 0.12);
+}
+
+.settings-pill-available {
+  background: rgba(34, 197, 94, 0.16);
+}
+
+.settings-pill-planned {
+  background: rgba(249, 115, 22, 0.16);
+}
+
+.settings-pill-restricted {
+  background: rgba(225, 29, 72, 0.12);
+}
+
+.settings-list,
+.settings-section-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-list-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid rgba(20, 33, 61, 0.08);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.settings-list-row strong,
+.settings-room-card strong {
+  display: block;
+}
+
+.settings-list-row p {
+  margin: 0.35rem 0 0;
+  color: var(--color-ink-soft);
+}
+
+.settings-list-row-section {
+  align-items: center;
+}
+
+.settings-meta-stack {
+  display: grid;
+  justify-items: end;
+  gap: 0.35rem;
+}
+
+.settings-room-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--space-3);
+}
+
+.settings-room-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.settings-empty-state,
+.settings-list-empty {
+  padding: var(--space-4);
+  border: 1px dashed rgba(20, 33, 61, 0.16);
+  border-radius: 1rem;
+  color: var(--color-ink-soft);
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.settings-empty-state strong {
+  display: block;
+  color: var(--color-ink);
+}
+
+.settings-empty-state p,
+.settings-list-empty {
+  margin: 0.45rem 0 0;
+}
+
+@media (max-width: 900px) {
+  .settings-two-column-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .check-list {
   display: grid;
   gap: var(--space-3);
