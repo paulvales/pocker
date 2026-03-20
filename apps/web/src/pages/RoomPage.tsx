@@ -8,6 +8,8 @@ import {
 } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import { AdminControlPanel } from '@/features/admin-controls/components/AdminControlPanel';
+import { ReactionDock } from '@/features/reactions/components/ReactionDock';
 import {
   buildRoomLink,
   buildRoomPath,
@@ -23,6 +25,12 @@ import {
   writeStoredPlayerName,
 } from '@/features/rooms/model/sessionPersistence';
 import { RoomSessionProvider, useRoomSession } from '@/features/rooms/realtime';
+import { AdminTaskSidebar } from '@/features/tasks/components/AdminTaskSidebar';
+import { getTaskHref, getTaskLabel } from '@/features/tasks/model/taskList';
+import { ParticipantGrid } from '@/features/voting/components/ParticipantGrid';
+import { VotingBoard } from '@/features/voting/components/VotingBoard';
+import { useVotingBoard } from '@/features/voting/hooks/useVotingBoard';
+import { clearStoredVote } from '@/features/voting/model/votePersistence';
 
 const INVALID_SLUG_MESSAGE =
   'Use letters, numbers, hyphen or underscore. Reserved service routes are not allowed.';
@@ -55,6 +63,24 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
 
   const activeRoomSlug = session.room?.id || normalizedRoomSlug;
   const shareLink = buildRoomLink(activeRoomSlug);
+  const selectedTaskLabel = session.selectedTask
+    ? getTaskLabel(session.selectedTask)
+    : null;
+  const selectedTaskHref = session.selectedTask
+    ? getTaskHref(session.selectedTask)
+    : null;
+  const canMutateRoom =
+    session.session.isAdmin && session.connectionStatus === 'connected';
+  const votingBoard = useVotingBoard({
+    connectionStatus: session.connectionStatus,
+    currentPlayer: session.currentPlayer,
+    estimationMode: session.estimationMode,
+    players: session.players,
+    revealed: session.revealed,
+    roomId: activeRoomSlug,
+    userName: session.session.userName,
+    vote: session.actions.vote,
+  });
 
   useEffect(() => {
     if (roomSlug && normalizedRoomSlug && roomSlug !== normalizedRoomSlug) {
@@ -177,6 +203,7 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
   function handleResetSession() {
     clearStoredPlayerName();
     clearStoredAdminIntent(activeRoomSlug);
+    clearStoredVote(activeRoomSlug, session.session.userName);
     autoJoinAttemptedRef.current = activeRoomSlug;
     session.actions.resetSession();
     setPlayerName('');
@@ -194,6 +221,9 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
           : 'Open a valid room slug to start.');
 
   const canSubmit = Boolean(playerName.trim() && roomSlugIsValid && normalizedRoomSlug);
+  const pendingActions = Object.entries(session.pending)
+    .filter(([, isPending]) => isPending)
+    .map(([actionName]) => actionName);
 
   return (
     <section className="page-grid room-page-grid">
@@ -201,7 +231,7 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
         <article className="panel panel-stage room-entry-panel">
           <div className="panel-heading">
             <div>
-              <p className="eyebrow">APP-18</p>
+              <p className="eyebrow">APP-19</p>
               <h2>
                 {normalizedRoomSlug
                   ? `Room entry for /${normalizedRoomSlug}`
@@ -386,6 +416,10 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
                   <span className="room-badge-label">You</span>
                   <strong>{session.session.userName}</strong>
                 </span>
+                <span className="room-badge">
+                  <span className="room-badge-label">Round</span>
+                  <strong>{session.revealed ? 'Revealed' : 'In progress'}</strong>
+                </span>
               </div>
 
               <div className="room-topbar-actions">
@@ -412,6 +446,29 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
             </div>
           </article>
 
+          {session.lastError || session.lastUserEvent ? (
+            <article className={`panel${session.lastError ? ' panel-error' : ' panel-subtle'}`}>
+              <div className="event-grid">
+                <div className="event-card">
+                  <span className="status-label">Last room event</span>
+                  <strong>
+                    {session.lastUserEvent
+                      ? `${session.lastUserEvent.type}: ${session.lastUserEvent.message}`
+                      : 'No room event yet'}
+                  </strong>
+                </div>
+                <div className="event-card">
+                  <span className="status-label">Transport status</span>
+                  <strong>
+                    {session.lastError
+                      ? `${session.lastError.code}: ${session.lastError.message}`
+                      : 'No transport errors'}
+                  </strong>
+                </div>
+              </div>
+            </article>
+          ) : null}
+
           <section
             className={`room-session-shell${
               session.session.isAdmin
@@ -420,59 +477,119 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
             }`}
           >
             {session.session.isAdmin ? (
-              <aside className="panel panel-subtle session-rail">
-                <p className="eyebrow">Admin Lane</p>
-                <h2>Session controls slot</h2>
-                <p className="lead">
-                  Voting controls, task navigation and admin-only actions will
-                  attach here in APP-19 without changing the room shell itself.
-                </p>
-                <ul className="check-list">
-                  <li>Realtime transport is already connected to this room slug.</li>
-                  <li>Session persistence is local and route-aware.</li>
-                  <li>Room topbar, badges and shell are already live.</li>
-                </ul>
+              <aside className="session-rail">
+                <AdminTaskSidebar
+                  connectionReady={session.connectionStatus === 'connected'}
+                  note={session.note}
+                  onSaveNote={session.actions.updateNote}
+                  onSaveTaskList={session.actions.updateTaskList}
+                  onSelectTask={session.actions.selectTask}
+                  pending={{
+                    noteUpdate: session.pending.noteUpdate,
+                    taskListUpdate: session.pending.taskListUpdate,
+                    taskSelect: session.pending.taskSelect,
+                  }}
+                  roomId={activeRoomSlug}
+                  selectedIndex={session.taskState.selectedIndex}
+                  selectedTask={session.selectedTask}
+                  taskItems={session.taskState.items}
+                />
+
+                <AdminControlPanel
+                  averageLabel={votingBoard.averageLabel}
+                  averageValue={votingBoard.averageValue}
+                  canMutate={canMutateRoom}
+                  estimationMode={session.estimationMode}
+                  hasVotes={votingBoard.hasVotes}
+                  onReset={session.actions.reset}
+                  onReveal={session.actions.reveal}
+                  onSendStoryPoints={session.actions.setStoryPoints}
+                  onSetEstimationMode={session.actions.setEstimationMode}
+                  pending={{
+                    setEstimationMode: session.pending.setEstimationMode,
+                    setStoryPoints: session.pending.setStoryPoints,
+                  }}
+                  revealed={session.revealed}
+                />
               </aside>
             ) : null}
 
             <div className="session-stage-stack">
-              <article className="panel panel-stage">
+              <article className="panel panel-stage room-summary-panel">
                 <div className="panel-heading">
                   <div>
                     <p className="eyebrow">
                       {session.session.isAdmin ? 'Admin Session' : 'Viewer Session'}
                     </p>
-                    <h2>Room shell is ready for feature parity work</h2>
+                    <h2>Core room flow now runs in React</h2>
                   </div>
-                  <span className="role-pill">
-                    {session.session.isAdmin ? 'Admin' : 'Viewer'}
+                  <span className={`connection-pill connection-pill-${session.connectionStatus}`}>
+                    {session.connectionStatus}
                   </span>
                 </div>
-                <p className="lead">
-                  The React room route now handles entry, identity persistence, topbar
-                  badges and the session layout. Voting, tasks and reactions can be
-                  connected next without revisiting the room lifecycle flow.
-                </p>
 
                 <div className="session-metric-grid">
-                  <article className="status-card">
-                    <span className="status-label">Connection</span>
-                    <strong>{session.connectionStatus}</strong>
-                  </article>
                   <article className="status-card">
                     <span className="status-label">Players online</span>
                     <strong>{session.players.length}</strong>
                   </article>
                   <article className="status-card">
-                    <span className="status-label">Selected task</span>
-                    <strong>{session.selectedTask || 'No task selected yet'}</strong>
+                    <span className="status-label">Estimation mode</span>
+                    <strong>{session.estimationMode === 'hours' ? 'Hours' : 'Points'}</strong>
                   </article>
                   <article className="status-card">
-                    <span className="status-label">Current note</span>
-                    <strong>{session.note || 'No note from admin yet'}</strong>
+                    <span className="status-label">Current round</span>
+                    <strong>{session.revealed ? 'Votes revealed' : 'Voting in progress'}</strong>
+                  </article>
+                  <article className="status-card">
+                    <span className="status-label">Pending actions</span>
+                    <strong>{pendingActions.join(', ') || 'idle'}</strong>
                   </article>
                 </div>
+
+                {session.selectedTask ? (
+                  selectedTaskHref ? (
+                    <a
+                      className="task-link-card"
+                      href={selectedTaskHref}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      <span className="status-label">Selected task</span>
+                      <strong>{selectedTaskLabel}</strong>
+                      <span className="field-help">{session.selectedTask}</span>
+                    </a>
+                  ) : (
+                    <div className="task-link-card">
+                      <span className="status-label">Selected task</span>
+                      <strong>{selectedTaskLabel}</strong>
+                      <span className="field-help">{session.selectedTask}</span>
+                    </div>
+                  )
+                ) : (
+                  <p className="entry-status">
+                    No task list is active yet. Votes can still continue for an ad-hoc round.
+                  </p>
+                )}
+
+                <div className="note-card">
+                  <span className="status-label">Shared note</span>
+                  <p className="note-copy">
+                    {session.note || 'No note from the admin yet.'}
+                  </p>
+                </div>
               </article>
+
+              <VotingBoard
+                averageLabel={votingBoard.averageLabel}
+                canVote={votingBoard.canVote}
+                currentVote={votingBoard.currentVote}
+                estimationMode={session.estimationMode}
+                onVote={session.actions.vote}
+                revealed={session.revealed}
+                visibleAverageValue={votingBoard.visibleAverageValue}
+                voteValues={votingBoard.voteValues}
+              />
 
               <article className="panel">
                 <div className="panel-heading">
@@ -481,71 +598,57 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
                     <h2>Live room roster</h2>
                   </div>
                   <span className="connection-pill connection-pill-neutral">
-                    {session.revealed ? 'Revealed' : 'Hidden votes'}
+                    {session.players.length} connected
                   </span>
                 </div>
 
-                {session.players.length ? (
-                  <div className="participant-grid">
-                    {session.players.map((player) => (
-                      <article className="participant-card" key={player.id}>
-                        <div className="participant-card-header">
-                          <strong>{player.name}</strong>
-                          {player.isAdmin ? (
-                            <span className="participant-chip participant-chip-admin">
-                              Admin
-                            </span>
-                          ) : (
-                            <span className="participant-chip">Viewer</span>
-                          )}
-                        </div>
-                        <p className="participant-copy">
-                          {player.id === session.socketId
-                            ? 'This is your current socket session.'
-                            : 'Connected through the shared room route.'}
-                        </p>
-                      </article>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="entry-status">
-                    Waiting for the first players snapshot from the realtime store.
-                  </p>
-                )}
+                <ParticipantGrid
+                  players={votingBoard.orderedPlayers}
+                  revealed={session.revealed}
+                  socketId={session.socketId}
+                />
               </article>
 
               <article className="panel panel-subtle">
-                <p className="eyebrow">Next surface</p>
+                <p className="eyebrow">Capability surface</p>
                 <div className="event-grid">
                   <div className="event-card">
-                    <span className="status-label">Pending actions</span>
+                    <span className="status-label">Task management</span>
                     <strong>
-                      {Object.entries(session.pending)
-                        .filter(([, isPending]) => isPending)
-                        .map(([actionName]) => actionName)
-                        .join(', ') || 'idle'}
+                      {session.taskState.items.length
+                        ? `${session.taskState.items.length} shared tasks`
+                        : 'Backlog is still empty'}
                     </strong>
                   </div>
                   <div className="event-card">
-                    <span className="status-label">Last room event</span>
+                    <span className="status-label">Reactions</span>
                     <strong>
-                      {session.lastUserEvent
-                        ? `${session.lastUserEvent.type}: ${session.lastUserEvent.message}`
-                        : 'No room event yet'}
+                      {session.currentPlayer?.reaction
+                        ? `Active reaction: ${session.currentPlayer.reaction}`
+                        : 'Reaction dock is ready'}
                     </strong>
                   </div>
                   <div className="event-card">
-                    <span className="status-label">Last error</span>
+                    <span className="status-label">YouTrack capability</span>
                     <strong>
-                      {session.lastError
-                        ? `${session.lastError.code}: ${session.lastError.message}`
-                        : 'No transport errors'}
+                      {session.session.isAdmin
+                        ? 'Available from admin controls'
+                        : 'Visible to the admin only'}
                     </strong>
                   </div>
                 </div>
               </article>
             </div>
           </section>
+
+          <ReactionDock
+            activeReaction={session.currentPlayer?.reaction ?? null}
+            canReact={Boolean(
+              session.currentPlayer && session.connectionStatus === 'connected',
+            )}
+            onSelectReaction={session.actions.setReaction}
+            pending={session.pending.setReaction}
+          />
         </>
       )}
     </section>
