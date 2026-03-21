@@ -87,10 +87,11 @@ function createEstimationHistoryStore({
     const poolConfig = buildPoolConfig(connectionString);
     const activePool = pool || (poolConfig ? new PoolClass(poolConfig) : null);
     let initializationPromise = null;
+    const isEnabled = Boolean(activePool);
 
     async function initialize() {
-        if (!activePool) {
-            throw new Error('DATABASE_URL_NOT_CONFIGURED');
+        if (!isEnabled) {
+            return;
         }
 
         if (!initializationPromise) {
@@ -175,6 +176,10 @@ function createEstimationHistoryStore({
             return [];
         }
 
+        if (!isEnabled) {
+            return safeEntries;
+        }
+
         await initialize();
         const client = await activePool.connect();
 
@@ -221,6 +226,23 @@ function createEstimationHistoryStore({
     }
 
     async function list(filters = {}) {
+        if (!isEnabled) {
+            const requestedPage = normalizePositiveInteger(filters.page, 1);
+            const pageSize = normalizePositiveInteger(filters.pageSize, 25, { min: 1, max: 100 });
+
+            return {
+                items: [],
+                pagination: {
+                    page: requestedPage,
+                    pageSize,
+                    totalItems: 0,
+                    totalPages: 1,
+                    hasPreviousPage: false,
+                    hasNextPage: false,
+                },
+            };
+        }
+
         await initialize();
 
         const roomId = normalizeText(filters.roomId);
@@ -306,6 +328,14 @@ function createEstimationHistoryStore({
     }
 
     async function listMeta() {
+        if (!isEnabled) {
+            return {
+                rooms: [],
+                participants: [],
+                estimateTypes: [],
+            };
+        }
+
         await initialize();
 
         const [roomsResult, participantsResult, estimateTypesResult] = await Promise.all([
@@ -346,6 +376,7 @@ function createEstimationHistoryStore({
         append,
         close,
         initialize,
+        isEnabled,
         list,
         listMeta,
         pool: activePool,

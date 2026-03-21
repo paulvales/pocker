@@ -2,6 +2,7 @@ const http = require('http');
 const { newDb } = require('pg-mem');
 const ioClient = require('socket.io-client');
 const packageJson = require('../package.json');
+const { createEstimationHistoryStore } = require('../estimation-history-store');
 
 const historyDb = newDb();
 const { Pool } = historyDb.adapters.createPg();
@@ -162,6 +163,48 @@ describe('socket server', () => {
         },
       },
     });
+  });
+
+  test('uses a disabled history store when DATABASE_URL is missing', async () => {
+    const store = createEstimationHistoryStore({ connectionString: '' });
+
+    await expect(store.initialize()).resolves.toBeUndefined();
+    await expect(store.append([
+      {
+        roomId: 'room-1',
+        taskId: 'APP-1',
+        participantName: 'Alice',
+        estimate: '3',
+        estimateType: 'points',
+        recordedAt: '2026-03-21T00:00:00.000Z',
+      },
+    ])).resolves.toEqual([
+      {
+        roomId: 'room-1',
+        taskId: 'APP-1',
+        participantName: 'Alice',
+        estimate: '3',
+        estimateType: 'points',
+        recordedAt: '2026-03-21T00:00:00.000Z',
+      },
+    ]);
+    await expect(store.list({ page: 2, pageSize: 10 })).resolves.toEqual({
+      items: [],
+      pagination: {
+        page: 2,
+        pageSize: 10,
+        totalItems: 0,
+        totalPages: 1,
+        hasPreviousPage: false,
+        hasNextPage: false,
+      },
+    });
+    await expect(store.listMeta()).resolves.toEqual({
+      rooms: [],
+      participants: [],
+      estimateTypes: [],
+    });
+    await expect(store.close()).resolves.toBeUndefined();
   });
 
   test('creates a room id directly from the requested suffix', async () => {
