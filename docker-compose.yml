@@ -21,10 +21,6 @@ services:
       - traefik.http.routers.pocker.entrypoints=${TRAEFIK_ENTRYPOINTS:-websecure}
       - traefik.http.routers.pocker.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-le}
       - traefik.http.services.pocker.loadbalancer.server.port=3000
-      - traefik.http.routers.webpaul-root.rule=Host(`${ROOT_HOST:-webpaul.ru}`) || Host(`${WWW_ROOT_HOST:-www.webpaul.ru}`)
-      - traefik.http.routers.webpaul-root.entrypoints=${TRAEFIK_ENTRYPOINTS:-websecure}
-      - traefik.http.routers.webpaul-root.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-le}
-      - traefik.http.routers.webpaul-root.service=pocker
     networks:
       - web
 
