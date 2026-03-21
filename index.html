@@ -110,7 +110,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 6.4rem;
+            min-height: 4rem;
         }
 
         .player-reaction {
@@ -120,7 +120,7 @@
             display: none;
             align-items: center;
             justify-content: center;
-            font-size: clamp(4.6rem, 12vw, 6.6rem);
+            font-size: clamp(4.6rem, 12vw, 4.2rem);
             line-height: 1;
             pointer-events: none;
             filter: drop-shadow(0 .35rem .9rem rgba(0, 0, 0, .18));
@@ -1595,7 +1595,9 @@
             if (updateVisible) {
                 $value.text(safeValue);
             }
-
+            if(isAdmin){
+                $('#revealBtn').removeClass('disabled loading');
+            }
             return hiddenChanged || (updateVisible && visibleChanged);
         }
 
@@ -1945,6 +1947,7 @@
         });
 
         $('#revealBtn').click(() => {
+            $('#revealBtn').addClass('disabled loading');
             if (isAdmin) socket.emit('reveal', roomId);
         });
 
