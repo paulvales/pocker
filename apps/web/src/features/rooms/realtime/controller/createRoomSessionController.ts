@@ -176,6 +176,7 @@ export function createRoomSessionController(
 
       store.setState((currentState) => ({
         ...applyRoomSnapshot(currentState, snapshot),
+        currentPlayerId: snapshot.currentPlayerId,
         lastJoinIntent: {
           roomId,
           name: input.name,
@@ -308,6 +309,16 @@ export function createRoomSessionController(
     setPendingAction(store, 'setReaction', true);
     clearLastError(store);
 
+    const currentPlayerId = store.getState().currentPlayerId;
+    if (currentPlayerId) {
+      store.setState((currentState) => ({
+        ...currentState,
+        players: currentState.players.map((player) =>
+          player.id === currentPlayerId ? { ...player, reaction: value } : player,
+        ),
+      }));
+    }
+
     try {
       const roomId = getActiveRoomId(store.getState());
       await gateway.setReaction({ roomId, value });
@@ -343,6 +354,18 @@ export function createRoomSessionController(
   }
 
   function vote(value: string | null) {
+    const currentState = store.getState();
+    const currentPlayerId = currentState.currentPlayerId;
+
+    if (currentPlayerId) {
+      store.setState((state) => ({
+        ...state,
+        players: state.players.map((player) =>
+          player.id === currentPlayerId ? { ...player, vote: value } : player,
+        ),
+      }));
+    }
+
     const roomId = getActiveRoomId(store.getState());
     gateway.vote(roomId, value);
   }
@@ -371,6 +394,7 @@ export function createRoomSessionController(
       const snapshot = await gateway.joinRoom(joinIntent);
       store.setState((currentState) => ({
         ...applyRoomSnapshot(currentState, snapshot),
+        currentPlayerId: snapshot.currentPlayerId,
         session: {
           ...currentState.session,
           joined: true,

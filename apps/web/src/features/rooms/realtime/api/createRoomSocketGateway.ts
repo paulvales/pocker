@@ -9,6 +9,7 @@ import { io } from 'socket.io-client';
 
 import type {
   CreateRoomInput,
+  JoinedRoomSnapshot,
   JoinRoomInput,
   RoomGatewaySubscriptionHandlers,
   RoomSocketGateway,
@@ -227,7 +228,14 @@ export function createRoomSocketGateway(
       input,
     );
 
-    return createRoomSnapshotPayload(assertSocketAck(result));
+    const payload = assertSocketAck(result);
+    const snapshot = createRoomSnapshotPayload(payload);
+
+    return {
+      ...snapshot,
+      currentPlayerId:
+        typeof payload.currentPlayerId === 'string' ? payload.currentPlayerId : null,
+    } satisfies JoinedRoomSnapshot;
   }
 
   function requestAdminStatus(roomId: string) {

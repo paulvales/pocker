@@ -94,7 +94,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 6.4rem;
+  min-height: 4rem;
 }
 
 .player-reaction {
@@ -102,9 +102,10 @@ select {
   top: 50%;
   left: 50%;
   display: none;
+  opacity: 0;
   align-items: center;
   justify-content: center;
-  font-size: clamp(4.6rem, 12vw, 6.6rem);
+  font-size: clamp(4.6rem, 12vw, 4.2rem);
   line-height: 1;
   pointer-events: none;
   filter: drop-shadow(0 0.35rem 0.9rem rgba(0, 0, 0, 0.18));
@@ -114,6 +115,10 @@ select {
 
 .player-card.has-reaction .player-reaction {
   display: flex;
+  animation:
+    reaction-pop 0.42s cubic-bezier(0.2, 0.9, 0.28, 1.22),
+    reaction-float 1.8s ease-in-out 0.42s infinite;
+  opacity: 1;
 }
 
 .player-card.has-reaction .selectedPoint {
@@ -187,6 +192,34 @@ select {
   text-align: center;
   font-weight: bold;
   transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+@keyframes reaction-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -22%) scale(0.32) rotate(-14deg);
+  }
+
+  68% {
+    opacity: 1;
+    transform: translate(-50%, -60%) scale(1.16) rotate(6deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -56%) scale(1) rotate(0deg);
+  }
+}
+
+@keyframes reaction-float {
+  0%,
+  100% {
+    transform: translate(-50%, -56%) scale(1);
+  }
+
+  50% {
+    transform: translate(-50%, -62%) scale(1.05);
+  }
 }
 
 #noteDisplay {
@@ -383,12 +416,14 @@ select {
 }
 
 .top-controls.admin-mode {
+  display: flex !important;
   justify-content: space-between;
   align-items: center;
   flex-wrap: nowrap;
 }
 
 .top-controls.viewer-mode {
+  display: flex !important;
   justify-content: flex-start;
 }
 

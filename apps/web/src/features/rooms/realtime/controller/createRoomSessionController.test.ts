@@ -116,8 +116,14 @@ describe('createRoomSessionController', () => {
     });
 
     gateway.joinRoom
-      .mockResolvedValueOnce(joinedSnapshot)
-      .mockResolvedValueOnce(rejoinedSnapshot);
+      .mockResolvedValueOnce({
+        ...joinedSnapshot,
+        currentPlayerId: 'socket-1',
+      })
+      .mockResolvedValueOnce({
+        ...rejoinedSnapshot,
+        currentPlayerId: 'socket-2',
+      });
 
     const controller = createRoomSessionController({
       routeRoomSlug: 'alpha-room',
@@ -154,6 +160,53 @@ describe('createRoomSessionController', () => {
     });
     expect(gateway.requestAdminStatus).toHaveBeenCalledTimes(1);
     expect(controller.store.getState().socketId).toBe('socket-2');
+    expect(controller.store.getState().currentPlayerId).toBe('socket-2');
     expect(controller.store.getState().session.joined).toBe(true);
+  });
+
+  it('stores the joined player id separately from socket id', async () => {
+    const { gateway } = createGatewayMock();
+    const joinedSnapshot = createRoomSnapshotPayload({
+      room: {
+        id: 'alpha-room',
+        suffix: 'alpha-room',
+        label: 'alpha-room',
+        createdAt: null,
+        joinPath: '/alpha-room/',
+      },
+      players: [
+        {
+          id: 'session-42',
+          name: 'Alice',
+          vote: null,
+          reaction: null,
+          isAdmin: true,
+        },
+      ],
+      revealed: false,
+      note: '',
+      taskState: {
+        items: [],
+        selectedIndex: 0,
+      },
+      estimationMode: 'points',
+    });
+    gateway.joinRoom.mockResolvedValueOnce({
+      ...joinedSnapshot,
+      currentPlayerId: 'session-42',
+    });
+
+    const controller = createRoomSessionController({
+      routeRoomSlug: 'alpha-room',
+      gateway,
+    });
+
+    await controller.actions.join({
+      name: 'Alice',
+      isAdmin: true,
+    });
+
+    expect(controller.store.getState().currentPlayerId).toBe('session-42');
+    expect(controller.store.getState().players[0]?.id).toBe('session-42');
   });
 });

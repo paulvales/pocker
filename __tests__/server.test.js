@@ -165,6 +165,72 @@ describe('socket server', () => {
     await estimationHistoryStore.close();
   });
 
+  test('defaults runtime and audit stores to memory while keeping postgres history support', async () => {
+    const previousDatabaseUrl = process.env.DATABASE_URL;
+    delete process.env.DATABASE_URL;
+    let app;
+    let admin;
+    let teammate;
+
+    try {
+      const startedApp = await startTestApp({
+        roomRuntimeStoreOptions: undefined,
+        auditLogStoreOptions: undefined,
+      });
+      app = startedApp.app;
+      admin = await connectClient(startedApp.port);
+      teammate = await connectClient(startedApp.port);
+      const createResult = await createRoom(admin, 'memory-runtime');
+      const roomId = createResult.room.id;
+
+      await expect(joinRoom(admin, {
+        roomId,
+        name: 'Admin',
+        isAdmin: true,
+      })).resolves.toEqual(expect.objectContaining({
+        ok: true,
+        room: expect.objectContaining({ id: roomId }),
+      }));
+
+      await expect(joinRoom(teammate, {
+        roomId,
+        name: 'Teammate',
+      })).resolves.toEqual(expect.objectContaining({
+        ok: true,
+        room: expect.objectContaining({ id: roomId }),
+      }));
+
+      const votesUpdatePromise = waitForEvent(
+        admin,
+        SOCKET_SERVER_EVENTS.votesUpdate,
+        players => players.some(player => player.name === 'Teammate' && player.vote === '3'),
+      );
+
+      teammate.emit(SOCKET_CLIENT_EVENTS.vote, {
+        roomId,
+        value: '3',
+      });
+
+      await expect(votesUpdatePromise).resolves.toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Teammate',
+          vote: '3',
+        }),
+      ]));
+    } finally {
+      admin?.close();
+      teammate?.close();
+      if (app) {
+        await stopTestApp(app);
+      }
+      if (typeof previousDatabaseUrl === 'undefined') {
+        delete process.env.DATABASE_URL;
+      } else {
+        process.env.DATABASE_URL = previousDatabaseUrl;
+      }
+    }
+  });
+
   test('exposes health and version info over http and serves the React frontend by default', async () => {
     const health = await request(port, HTTP_ROUTES.health);
     const version = await request(port, HTTP_ROUTES.version);
@@ -1463,10 +1529,9 @@ describe('socket server', () => {
     }
   });
 
-  test('keeps the admin seat reserved during recovery and restores it for the same participant', async () => {
+  test('releases the admin seat when the room becomes empty', async () => {
     const adminClient = await connectClient(port);
-    const observerClient = await connectClient(port);
-    const recoveringClient = await connectClient(port);
+    const replacementAdminClient = await connectClient(port);
     const roomSuffix = `recovery-room-${Date.now()}`;
 
     try {
@@ -1488,12 +1553,12 @@ describe('socket server', () => {
       });
 
       await expect(
-        emitWithAck(observerClient, SOCKET_CLIENT_EVENTS.requestAdminStatus, roomId),
-      ).resolves.toBe(false);
+        emitWithAck(replacementAdminClient, SOCKET_CLIENT_EVENTS.requestAdminStatus, roomId),
+      ).resolves.toBe(true);
 
-      const recoveryState = await joinRoom(recoveringClient, {
+      const recoveryState = await joinRoom(replacementAdminClient, {
         roomId,
-        name: 'Admin',
+        name: 'Replacement Admin',
         isAdmin: true,
       });
 
@@ -1501,15 +1566,14 @@ describe('socket server', () => {
         ok: true,
         players: [
           expect.objectContaining({
-            name: 'Admin',
+            name: 'Replacement Admin',
             isAdmin: true,
           }),
         ],
       }));
     } finally {
       adminClient.close();
-      observerClient.close();
-      recoveringClient.close();
+      replacementAdminClient.close();
     }
   });
 

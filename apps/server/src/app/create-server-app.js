@@ -1,15 +1,23 @@
 const http = require('http');
 const { Server } = require('socket.io');
 const { createAuditLogStore } = require('../audit/create-audit-log-store');
+const { createInMemoryAuditLogStore } = require('../audit/create-in-memory-audit-log-store');
 const { createEstimationHistoryStore } = require('../../../../estimation-history-store');
 const { createAppLogger } = require('../observability/create-app-logger');
 const { createErrorMonitor } = require('../observability/create-error-monitor');
 const { createRoomRegistry } = require('../../../../room-registry');
 const { createRoomRuntimeStore } = require('../../../../room-runtime-store');
+const { createInMemoryRoomRuntimeStore } = require('../../../../room-runtime-store-memory');
 const { createServerConfig } = require('../config/create-server-config');
 const { createSaasFoundationService } = require('../domain/saas/create-saas-foundation-service');
 const { createHttpRequestHandler } = require('../http/create-http-request-handler');
 const { registerRoomHandlers } = require('../socket/register-room-handlers');
+
+function hasStoreOptions(options) {
+    return Boolean(options)
+        && typeof options === 'object'
+        && Object.keys(options).length > 0;
+}
 
 function createServerApp(options = {}) {
     const config = createServerConfig(options);
@@ -22,13 +30,13 @@ function createServerApp(options = {}) {
         onError: options.onError,
     });
     const auditLogStore = options.auditLogStore
-        || createAuditLogStore(
-            options.auditLogStoreOptions
-            || options.roomRuntimeStoreOptions
-            || {},
-        );
+        || (hasStoreOptions(options.auditLogStoreOptions)
+            ? createAuditLogStore(options.auditLogStoreOptions)
+            : createInMemoryAuditLogStore());
     const roomRuntimeStore = options.roomRuntimeStore
-        || createRoomRuntimeStore(options.roomRuntimeStoreOptions || {});
+        || (hasStoreOptions(options.roomRuntimeStoreOptions)
+            ? createRoomRuntimeStore(options.roomRuntimeStoreOptions)
+            : createInMemoryRoomRuntimeStore());
     const roomRegistry = options.roomRegistry || createRoomRegistry({
         roomRuntimeStore,
         sessionRecoveryTtlMs: config.realtime.sessionRecoveryTtlMs,

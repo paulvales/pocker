@@ -43,6 +43,10 @@ export type RoomJoinIntent = {
   isAdmin: boolean;
 };
 
+export type JoinedRoomSnapshot = RoomSnapshotDto & {
+  currentPlayerId: string | null;
+};
+
 export type RoomSessionState = {
   routeRoomSlug: string;
   roomId: string;
@@ -54,6 +58,7 @@ export type RoomSessionState = {
   estimationMode: EstimationMode;
   connectionStatus: RoomConnectionStatus;
   socketId: string | null;
+  currentPlayerId: string | null;
   adminSeatAvailable: boolean | null;
   lastError: RoomSessionError | null;
   lastUserEvent: RoomUserEvent | null;
@@ -138,7 +143,7 @@ export type RoomSocketGateway = {
     handlers: RoomGatewaySubscriptionHandlers,
   ) => () => void;
   createRoom: (input: CreateRoomInput) => Promise<PublicRoomDto>;
-  joinRoom: (input: JoinRoomInput) => Promise<RoomSnapshotDto>;
+  joinRoom: (input: JoinRoomInput) => Promise<JoinedRoomSnapshot>;
   requestAdminStatus: (roomId: string) => Promise<boolean>;
   updateNote: (input: UpdateNoteInput) => Promise<void>;
   updateTaskList: (input: UpdateTaskListInput) => Promise<void>;
@@ -161,7 +166,7 @@ export type RoomSessionActions = {
     name: string;
     isAdmin: boolean;
     roomId?: string;
-  }) => Promise<RoomSnapshotDto>;
+  }) => Promise<JoinedRoomSnapshot>;
   refreshAdminSeat: () => Promise<boolean>;
   updateNote: (note: string) => Promise<void>;
   updateTaskList: (items: string[]) => Promise<void>;

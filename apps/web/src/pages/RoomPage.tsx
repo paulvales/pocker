@@ -18,12 +18,15 @@ import {
 } from '@/features/rooms/model/roomRoute';
 import {
   clearStoredAdminIntent,
+  clearStoredAutoJoinIntent,
   clearStoredCreateRoomIntent,
   clearStoredPlayerName,
   readStoredAdminIntent,
+  readStoredAutoJoinIntent,
   readStoredCreateRoomIntent,
   readStoredPlayerName,
   writeStoredAdminIntent,
+  writeStoredAutoJoinIntent,
   writeStoredPlayerName,
 } from '@/features/rooms/model/sessionPersistence';
 import { RoomSessionProvider, useRoomSession } from '@/features/rooms/realtime';
@@ -39,6 +42,8 @@ const DEFAULT_ROOM_STATUS_TEXT =
   'Комната готова. Можно входить самому и приглашать участников по ссылке.';
 const ROOM_LINK_HELP_TEXT = 'Скопируйте ссылку и отправьте её команде.';
 const TASK_WHEEL_ITEM_HEIGHT = 40;
+const ROOM_TOAST_TTL_MS = 4200;
+const ROOM_TOAST_ERROR_TTL_MS = 6200;
 const GRADIENT_CLASSES = [
   'gradient-1',
   'gradient-2',
@@ -61,6 +66,24 @@ type RoomPageContentProps = {
   roomSlug: string;
 };
 
+type RoomToastTone = 'success' | 'info' | 'warning' | 'error';
+
+type JQueryToastSettings = {
+  class?: string;
+  displayTime?: number;
+  message: string;
+  position?: string;
+  showProgress?: 'top' | 'bottom' | boolean;
+};
+
+type JQueryToastApi = {
+  toast?: (settings: JQueryToastSettings) => unknown;
+};
+
+type JQueryFactory = ((target: Element | string) => JQueryToastApi) & {
+  toast?: (settings: JQueryToastSettings) => unknown;
+};
+
 function RoomPageContent({ roomSlug }: RoomPageContentProps) {
   const navigate = useNavigate();
   const session = useRoomSession();
@@ -77,12 +100,15 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
   const autoJoinAttemptedRef = useRef('');
   const createIntentAttemptedRef = useRef('');
   const adminNoteTimerRef = useRef<number | null>(null);
+  const lastUserEventAtRef = useRef(0);
+  const lastErrorAtRef = useRef(0);
   const reactionDockRef = useRef<HTMLDivElement | null>(null);
   const activeRoomSlug = session.room?.id || normalizedRoomSlug;
   const shareLink = activeRoomSlug ? buildRoomLink(activeRoomSlug) : '';
   const selectedTask = session.selectedTask;
   const selectedTaskLabel = selectedTask ? getTaskLabel(selectedTask) : '-';
   const selectedTaskHref = selectedTask ? getTaskHref(selectedTask) : null;
+  const isCurrentUserAdmin = session.currentPlayer?.isAdmin ?? session.session.isAdmin;
   const versionLabel = readAppVersionLabel();
   const votingBoard = useVotingBoard({
     connectionStatus: session.connectionStatus,
@@ -95,13 +121,10 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
     vote: session.actions.vote,
   });
   const taskWheelTransform = `translateY(-${session.taskState.selectedIndex * TASK_WHEEL_ITEM_HEIGHT}px)`;
-  const hasViewerTask = Boolean(!session.session.isAdmin && selectedTask);
+  const hasViewerTask = Boolean(!isCurrentUserAdmin && selectedTask);
   const showAverageVote = session.session.joined;
-  const averageVoteValue = session.revealed
-    ? votingBoard.averageValue
-    : session.players.some((player) => player.vote)
-      ? votingBoard.averageValue
-      : '0';
+  const hiddenAverageVoteValue = votingBoard.averageValue;
+  const visibleAverageVoteValue = session.revealed ? votingBoard.averageValue : '?';
 
   useEffect(() => {
     document.title = 'Scrum Poker';
@@ -151,6 +174,36 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
     };
   }, [reactionPickerOpen]);
 
+  useEffect(() => {
+    if (!session.lastUserEvent?.message) {
+      return;
+    }
+    if (session.lastUserEvent.receivedAt <= lastUserEventAtRef.current) {
+      return;
+    }
+
+    lastUserEventAtRef.current = session.lastUserEvent.receivedAt;
+    showRoomToast({
+      message: session.lastUserEvent.message,
+      tone: normalizeToastTone(session.lastUserEvent.type),
+    });
+  }, [session.lastUserEvent]);
+
+  useEffect(() => {
+    if (!session.lastError?.message) {
+      return;
+    }
+    if (session.lastError.at <= lastErrorAtRef.current) {
+      return;
+    }
+
+    lastErrorAtRef.current = session.lastError.at;
+    showRoomToast({
+      message: session.lastError.message,
+      tone: 'error',
+    });
+  }, [session.lastError]);
+
   const runCreateIntent = useEffectEvent(async () => {
     const savedName = readStoredPlayerName().trim();
     if (!savedName || !normalizedRoomSlug) {
@@ -168,6 +221,7 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
         isAdmin: true,
         roomId: normalizedRoomSlug,
       });
+      writeStoredAutoJoinIntent(normalizedRoomSlug);
       clearStoredCreateRoomIntent();
       setCreateIntentSlug('');
     } catch {
@@ -221,6 +275,9 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
     if (!readStoredPlayerName().trim()) {
       return;
     }
+    if (!readStoredAutoJoinIntent(normalizedRoomSlug)) {
+      return;
+    }
 
     void runAutoJoin();
   }, [
@@ -253,6 +310,7 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
         isAdmin: wantsAdmin,
         roomId: normalizedRoomSlug,
       });
+      writeStoredAutoJoinIntent(normalizedRoomSlug);
     } catch {
       // session store already contains the normalized error
     }
@@ -274,6 +332,10 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
   function handleChangeIdentity() {
     clearStoredPlayerName();
     clearStoredAdminIntent(activeRoomSlug);
+    clearStoredAutoJoinIntent(activeRoomSlug);
+    if (normalizedRoomSlug && normalizedRoomSlug !== activeRoomSlug) {
+      clearStoredAutoJoinIntent(normalizedRoomSlug);
+    }
     clearStoredCreateRoomIntent();
     clearStoredVote(activeRoomSlug, session.session.userName);
     session.actions.resetSession();
@@ -527,7 +589,7 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
           className="app-sidebar"
           id="taskSidebar"
           style={{
-            display: session.session.joined && session.session.isAdmin ? undefined : 'none',
+            display: session.session.joined && isCurrentUserAdmin ? 'block' : 'none',
           }}
         >
           <div className="app-sidebar-stack">
@@ -554,9 +616,9 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
               style={{
                 display:
                   session.session.joined
-                  && session.session.isAdmin
+                  && isCurrentUserAdmin
                   && session.taskState.items.length
-                    ? undefined
+                    ? 'block'
                     : 'none',
               }}
             >
@@ -571,7 +633,7 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
                   id="taskPrevBtn"
                   style={{
                     display:
-                      session.taskState.items.length > 0 && session.session.isAdmin
+                      session.taskState.items.length > 0 && isCurrentUserAdmin
                         ? undefined
                         : 'none',
                   }}
@@ -627,7 +689,7 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
                   id="taskNextBtn"
                   style={{
                     display:
-                      session.taskState.items.length > 0 && session.session.isAdmin
+                      session.taskState.items.length > 0 && isCurrentUserAdmin
                         ? undefined
                         : 'none',
                   }}
@@ -649,115 +711,121 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
               <input
                 id="isAdmin"
                 type="hidden"
-                value={session.session.joined ? (session.session.isAdmin ? '1' : '0') : (wantsAdmin ? '1' : '0')}
+                value={session.session.joined ? (isCurrentUserAdmin ? '1' : '0') : (wantsAdmin ? '1' : '0')}
               />
               <div className="ui basic" id="common" style={{ marginBottom: 0 }}>
-                <div
-                  className={`top-controls${
-                    session.session.isAdmin ? ' admin-mode' : ' viewer-mode'
-                  }`}
-                  id="topControls"
-                  style={{ display: session.session.joined ? 'flex' : 'none' }}
-                >
+                {session.session.joined ? (
                   <div
-                    className="ui buttons"
-                    id="adminControls"
-                    style={{
-                      display:
-                        session.session.joined && session.session.isAdmin ? undefined : 'none',
-                    }}
-                  >
-                    <button
-                      className="ui green button"
-                      id="revealBtn"
-                      type="button"
-                      onClick={session.actions.reveal}
-                    >
-                      Показать
-                    </button>
-                    <button
-                      className="ui red button"
-                      id="resetBtn"
-                      type="button"
-                      onClick={session.actions.reset}
-                    >
-                      Сбросить
-                    </button>
-                  </div>
-
-                  <div
-                    className={`estimation-mode-panel ${
-                      session.session.isAdmin ? 'admin-mode' : 'viewer-mode'
+                    className={`top-controls${
+                      isCurrentUserAdmin ? ' admin-mode' : ' viewer-mode'
                     }`}
-                    id="estimationModePanel"
-                    style={{ display: session.session.joined ? undefined : 'none' }}
+                    id="topControls"
+                    style={{ display: 'flex' }}
                   >
-                    <div className="estimation-mode-content">
-                      <div className="estimation-mode-label" id="estimationModeLabel">
-                        Оцениваем:{' '}
-                        <span className="estimation-mode-value" id="estimationModeValue">
-                          {session.estimationMode === 'hours' ? 'Часы' : 'Поинты'}
-                        </span>
-                      </div>
-                      <div className="ui buttons estimation-mode-buttons" id="estimationModeButtons">
+                    {isCurrentUserAdmin ? (
+                      <div className="ui buttons" id="adminControls">
                         <button
-                          className={`ui button${
-                            session.estimationMode === 'points' ? ' blue active' : ''
-                          }`}
-                          id="modePointsBtn"
+                          className="ui green button"
+                          id="revealBtn"
                           type="button"
-                          onClick={() => {
-                            void session.actions.setEstimationMode('points');
-                          }}
+                          onClick={session.actions.reveal}
                         >
-                          Поинты
+                          Показать
                         </button>
                         <button
-                          className={`ui button${
-                            session.estimationMode === 'hours' ? ' blue active' : ''
-                          }`}
-                          id="modeHoursBtn"
+                          className="ui red button"
+                          id="resetBtn"
                           type="button"
-                          onClick={() => {
-                            void session.actions.setEstimationMode('hours');
-                          }}
+                          onClick={session.actions.reset}
                         >
-                          Часы
+                          Сбросить
                         </button>
                       </div>
-                    </div>
-                  </div>
+                    ) : null}
 
-                  <div
-                    className={`viewer-task-panel${hasViewerTask ? ' visible' : ''}`}
-                    id="viewerTaskPanel"
-                    style={{
-                      display: hasViewerTask ? undefined : 'none',
-                    }}
-                  >
-                    <div className="estimation-mode-content">
-                      <a
-                        className="viewer-task-link"
-                        id="viewerTaskLink"
-                        href={selectedTaskHref || undefined}
-                        rel="noopener noreferrer"
-                        target={selectedTaskHref ? '_blank' : undefined}
-                      >
-                        <span className="viewer-task-caption">Текущая задача:</span>
-                        <span className="viewer-task-value" id="viewerTaskValue">
-                          {selectedTaskLabel}
-                        </span>
-                      </a>
+                    <div
+                      className={`estimation-mode-panel ${
+                        isCurrentUserAdmin ? 'admin-mode' : 'viewer-mode'
+                      }`}
+                      id="estimationModePanel"
+                    >
+                      <div className="estimation-mode-content">
+                        <div className="estimation-mode-label" id="estimationModeLabel">
+                          Оцениваем:{' '}
+                          <span className="estimation-mode-value" id="estimationModeValue">
+                            {session.estimationMode === 'hours' ? 'Часы' : 'Поинты'}
+                          </span>
+                        </div>
+                        {isCurrentUserAdmin ? (
+                          <div
+                            className="ui buttons estimation-mode-buttons"
+                            id="estimationModeButtons"
+                          >
+                            <button
+                              className={`ui button${
+                                session.estimationMode === 'points' ? ' blue active' : ''
+                              }`}
+                              id="modePointsBtn"
+                              type="button"
+                              onClick={() => {
+                                void session.actions.setEstimationMode('points');
+                              }}
+                            >
+                              Поинты
+                            </button>
+                            <button
+                              className={`ui button${
+                                session.estimationMode === 'hours' ? ' blue active' : ''
+                              }`}
+                              id="modeHoursBtn"
+                              type="button"
+                              onClick={() => {
+                                void session.actions.setEstimationMode('hours');
+                              }}
+                            >
+                              Часы
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
+
+                    {hasViewerTask ? (
+                      <div className="viewer-task-panel visible" id="viewerTaskPanel">
+                        <div className="estimation-mode-content">
+                          {selectedTaskHref ? (
+                            <a
+                              className="viewer-task-link"
+                              id="viewerTaskLink"
+                              href={selectedTaskHref}
+                              rel="noopener noreferrer"
+                              target="_blank"
+                            >
+                              <span className="viewer-task-caption">Текущая задача:</span>
+                              <span className="viewer-task-value" id="viewerTaskValue">
+                                {selectedTaskLabel}
+                              </span>
+                            </a>
+                          ) : (
+                            <div className="viewer-task-link" id="viewerTaskLink">
+                              <span className="viewer-task-caption">Текущая задача:</span>
+                              <span className="viewer-task-value" id="viewerTaskValue">
+                                {selectedTaskLabel}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
-                </div>
+                ) : null}
 
                 <div
                   className="ui form"
                   id="adminNoteForm"
                   style={{
                     display:
-                      session.session.joined && session.session.isAdmin ? undefined : 'none',
+                      session.session.joined && isCurrentUserAdmin ? undefined : 'none',
                   }}
                 >
                   <div className="field">
@@ -781,7 +849,7 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
                   style={{
                     display:
                       session.session.joined
-                      && !session.session.isAdmin
+                      && !isCurrentUserAdmin
                       && session.note.trim()
                         ? undefined
                         : 'none',
@@ -789,37 +857,39 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
                 >
                   {renderTextWithLinks(session.note)}
                 </div>
-                <div
-                  id="voteButtons"
-                  className="ui wrapping big spaced buttons"
-                  style={{
-                    marginBottom: '15px',
-                    marginTop: '15px',
-                    display: session.session.joined ? 'grid' : 'none',
-                  }}
-                >
-                  {votingBoard.voteValues.map((value) => {
-                    const isOriginalVote = ['1', '2', '3', '5', '8', '13', '20', '40', '?']
-                      .includes(value);
-                    const isActive = votingBoard.currentVote === value;
+                {session.session.joined ? (
+                  <div
+                    id="voteButtons"
+                    className="ui wrapping big spaced buttons"
+                    style={{
+                      marginBottom: '15px',
+                      marginTop: '15px',
+                      display: 'grid',
+                    }}
+                  >
+                    {votingBoard.voteValues.map((value) => {
+                      const isOriginalVote = ['1', '2', '3', '5', '8', '13', '20', '40', '?']
+                        .includes(value);
+                      const isActive = votingBoard.currentVote === value;
 
-                    return (
-                      <button
-                        key={value}
-                        className={`ui big button${isOriginalVote ? ' orange' : ''}${
-                          isActive ? ' blue' : ''
-                        }`}
-                        type="button"
-                        disabled={!votingBoard.canVote}
-                        onClick={() => {
-                          session.actions.vote(value);
-                        }}
-                      >
-                        {value}
-                      </button>
-                    );
-                  })}
-                </div>
+                      return (
+                        <button
+                          key={value}
+                          className={`ui big button${isOriginalVote ? ' orange' : ''}${
+                            isActive ? ' blue' : ''
+                          }`}
+                          type="button"
+                          disabled={!votingBoard.canVote}
+                          onClick={() => {
+                            session.actions.vote(value);
+                          }}
+                        >
+                          {value}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
               </div>
               <div className="ui basic" style={{ marginTop: 0 }}>
                 <div id="players">
@@ -854,25 +924,23 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
               </div>
             </div>
 
-            <input id="averageVote1" type="hidden" value={averageVoteValue} />
+            <input id="averageVote1" type="hidden" value={hiddenAverageVoteValue} />
           </div>
         </div>
 
         <div className="ui fixed bottom sticky">
-          <div
-            className="ui tiny card statistic"
-            id="averageVote"
-            style={{ display: showAverageVote ? undefined : 'none' }}
-          >
-            <div className="value" style={{ fontWeight: 'bolder' }}>
-              {averageVoteValue}
+          {showAverageVote ? (
+            <div className="ui tiny card statistic" id="averageVote">
+              <div className="value" style={{ fontWeight: 'bolder' }}>
+                {visibleAverageVoteValue}
+              </div>
+              <div className="label">
+                {session.estimationMode === 'hours'
+                  ? 'Средняя оценка в часах'
+                  : 'Средняя оценка в поинтах'}
+              </div>
             </div>
-            <div className="label">
-              {session.estimationMode === 'hours'
-                ? 'Средняя оценка в часах'
-                : 'Средняя оценка в поинтах'}
-            </div>
-          </div>
+          ) : null}
         </div>
 
         <div
@@ -943,6 +1011,34 @@ function RoomPageContent({ roomSlug }: RoomPageContentProps) {
             если проблемы с сертификатом
           </a>
         </div>
+
+        {/*
+          <div className="room-toast-stack" id="roomToastStack" role="status" aria-live="polite">
+            {toasts.map((toast) => (
+              <div
+                key={toast.id}
+                className={`ui message room-toast   ui toast compact visible ${getRoomToastClassName(toast.tone)}`}
+              >
+                <div className="room-toast-body">
+                  <div className="room-toast-icon" aria-hidden="true">
+                    {getRoomToastIcon(toast.tone)}
+                  </div>
+                  <div className="room-toast-message">{toast.message}</div>
+                </div>
+                <button
+                  type="button"
+                  className="room-toast-dismiss"
+                  aria-label="Закрыть уведомление"
+                  onClick={() => {
+                    dismissToast(toast.id);
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        */}
 
         {taskListModalOpen ? (
           <div className="legacy-modal-overlay">
@@ -1023,6 +1119,57 @@ function buildUiButtonClass(
   return `${baseClassName}${options.disabled ? ' disabled' : ''}${
     options.loading ? ' loading' : ''
   }`;
+}
+
+function normalizeToastTone(value: string): RoomToastTone {
+  if (value === 'success' || value === 'warning' || value === 'error') {
+    return value;
+  }
+
+  return 'info';
+}
+
+function showRoomToast(toast: { message: string; tone: RoomToastTone }) {
+  const jquery = readJQueryFactory();
+  if (!jquery) {
+    return;
+  }
+
+  const settings: JQueryToastSettings = {
+    class: toast.tone,
+    displayTime: toast.tone === 'error' ? ROOM_TOAST_ERROR_TTL_MS : ROOM_TOAST_TTL_MS,
+    message: toast.message,
+    position: 'top right',
+    showProgress: 'bottom',
+  };
+
+  if (typeof jquery.toast === 'function') {
+    jquery.toast(settings);
+    return;
+  }
+
+  const bodyToast = jquery('body').toast;
+  if (typeof bodyToast === 'function') {
+    bodyToast(settings);
+  }
+}
+
+function readJQueryFactory(): JQueryFactory | null {
+  const globalWindow = window as Window & {
+    $?: unknown; /*
+      return '✓';
+    jQuery?: unknown;
+      return '!';
+  };
+      return '×';
+    default:
+      return 'i';
+  }
+*/
+    jQuery?: unknown;
+  };
+  const candidate = globalWindow.$ ?? globalWindow.jQuery;
+  return typeof candidate === 'function' ? (candidate as JQueryFactory) : null;
 }
 
 function renderTextWithLinks(text: string): ReactNode {

@@ -1,7 +1,7 @@
 import type { HistoryFiltersDto } from '@contracts';
 import type { FormEvent } from 'react';
 import { startTransition, useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useEstimationHistory } from '@/features/history/hooks/useEstimationHistory';
 import {
@@ -14,7 +14,14 @@ import {
 } from '@/features/history/model/historyFilters';
 import { readAppVersionLabel } from '@/shared/appVersion';
 
+type JQueryDropdownApi = {
+  dropdown: (...args: unknown[]) => unknown;
+};
+
+type JQueryFactory = (target: Element) => JQueryDropdownApi;
+
 export function HistoryPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [refreshNonce, setRefreshNonce] = useState(0);
   const filters = parseHistorySearchParams(searchParams);
@@ -41,6 +48,7 @@ export function HistoryPage() {
     [data.meta.estimateTypes, filters.estimateType],
   );
   const versionLabel = readAppVersionLabel();
+  const pagination = data.meta.pagination;
 
   useEffect(() => {
     document.title = 'История оценок';
@@ -49,6 +57,38 @@ export function HistoryPage() {
       document.body.classList.remove('history-page-body');
     };
   }, []);
+
+  useEffect(() => {
+    const jquery = readJQueryFactory();
+    if (!jquery) {
+      return;
+    }
+
+    [
+      { id: 'roomDropdown', value: filters.roomId },
+      { id: 'participantDropdown', value: filters.participantName },
+      { id: 'estimateTypeDropdown', value: filters.estimateType },
+      { id: 'pageSizeDropdown', value: String(pagination.pageSize) },
+    ].forEach(({ id, value }) => {
+      const element = document.getElementById(id);
+      if (!(element instanceof HTMLSelectElement)) {
+        return;
+      }
+
+      const dropdown = jquery(element);
+      dropdown.dropdown();
+      dropdown.dropdown('refresh');
+      dropdown.dropdown('set selected', value || '');
+    });
+  }, [
+    filters.estimateType,
+    filters.participantName,
+    filters.roomId,
+    pagination.pageSize,
+    participantOptions,
+    roomOptions,
+    estimateTypeOptions,
+  ]);
 
   useEffect(() => {
     if (currentSearch === canonicalSearch) {
@@ -128,7 +168,6 @@ export function HistoryPage() {
     updateUrlFilters(createDefaultHistoryFilters());
   }
 
-  const pagination = data.meta.pagination;
   const totalCount = pagination.totalItems;
   const rangeText = totalCount
     ? `Показано ${(pagination.page - 1) * pagination.pageSize + 1}-${(pagination.page - 1) * pagination.pageSize + data.items.length}`
@@ -156,10 +195,10 @@ export function HistoryPage() {
           </p>
         </div>
         <div className="history-toolbar">
-          <Link className="ui button" to="/">
+          <button className="ui button" onClick={() => navigate(-1)}>
             <i className="arrow left icon" />
             Назад
-          </Link>
+          </button>
           <button
             className="ui primary button"
             id="refreshBtn"
@@ -175,7 +214,7 @@ export function HistoryPage() {
       </div>
 
       <div className="ui segment history-card">
-        <form className="ui form" id="filtersForm" onSubmit={handleApply}>
+        <form key={canonicalSearch} className="ui form" id="filtersForm" onSubmit={handleApply}>
           <input id="pageFilter" name="page" type="hidden" value={String(filters.page)} readOnly />
           <div className="fields">
             <div className="field">
@@ -390,6 +429,15 @@ export function HistoryPage() {
 function readFormDataText(formData: FormData, key: string): string {
   const value = formData.get(key);
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function readJQueryFactory(): JQueryFactory | null {
+  const globalWindow = window as Window & {
+    $?: unknown;
+    jQuery?: unknown;
+  };
+  const candidate = globalWindow.$ ?? globalWindow.jQuery;
+  return typeof candidate === 'function' ? (candidate as JQueryFactory) : null;
 }
 
 function formatRecordedAt(value: string): string {

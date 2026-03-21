@@ -2,13 +2,21 @@
 
 ## Overview
 
-Pocker is a small Socket.IO server used for a Scrum Poker planning tool. It runs on Node.js and exposes a WebSocket API for clients.
+Pocker is a Scrum Poker application with:
+
+- Node.js backend in `apps/server`
+- React frontend in `apps/web`
+- Socket.IO realtime room flow
+- PostgreSQL persistence for estimate history, audit log, and durable room runtime
+
+The default frontend mode is `react`. The visible UI keeps legacy Fomantic parity, but the runtime is now React.
 
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) 18 or later
+- PostgreSQL for local or server runtime
 
-## Getting Started
+## First-Time Setup
 
 Install dependencies:
 
@@ -16,26 +24,65 @@ Install dependencies:
 npm install
 ```
 
-Configure the PostgreSQL connection string:
+Create the env file:
 
 ```sh
 cp .env.example .env
 ```
 
-Set `DATABASE_URL` in `.env`, for example with an Aiven connection string:
+Set at least `DATABASE_URL`. Example for a local PostgreSQL instance:
 
 ```env
-DATABASE_URL=postgres://user:password@host:port/defaultdb?sslmode=require
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/pocker?sslmode=disable
+POCKER_FRONTEND_MODE=react
 ```
 
-Run the server locally:
+`POCKER_FRONTEND_MODE` supports:
+
+- `react` - default mode, expected for local work and server deployments
+- `legacy` - fallback/debug mode only
+
+## Local Development
+
+Use two terminals.
 
 ```sh
 npm start
 ```
 
-The server listens on `process.env.PORT` or `3000` by default.
-On startup it connects to PostgreSQL and auto-creates the `estimation_history` table for estimate history storage.
+This starts the backend on `http://localhost:3000`.
+
+In another terminal:
+
+```sh
+npm run web:dev
+```
+
+This starts Vite on `http://localhost:5173`.
+Open `http://localhost:5173`.
+
+Notes:
+
+- Vite proxies `/api` and `/socket.io` to `localhost:3000`
+- this is the main local workflow while changing frontend code
+- backend still needs `DATABASE_URL`, but frontend tests do not
+
+## Local Production-Like Run
+
+If you want to run the app the same way the server serves it in `react` mode, build the frontend first:
+
+```sh
+npm run web:build
+npm start
+```
+
+Open `http://localhost:3000`.
+
+Important:
+
+- in `react` mode `npm start` serves `apps/web/dist/index.html`
+- if `apps/web/dist` is missing, the root page will not render correctly
+- this mode is useful for smoke-checking the packaged app before deployment
 
 Health and version endpoints:
 
@@ -44,11 +91,83 @@ curl http://localhost:3000/health
 curl http://localhost:3000/version
 ```
 
-Run the unit tests:
+## Automated Checks
+
+Run all tests:
+
+```sh
+npm run test:all
+```
+
+Run only backend tests:
 
 ```sh
 npm test
 ```
+
+Run only frontend tests:
+
+```sh
+npm run web:test
+```
+
+Run frontend lint:
+
+```sh
+npm run web:lint
+```
+
+Run frontend typecheck:
+
+```sh
+npm run web:typecheck
+```
+
+The automated test suite does not require your local PostgreSQL instance:
+
+- server tests use `pg-mem`
+- frontend tests use `vitest` + `jsdom`
+
+## Test Server / Staging
+
+For a test server, use the Docker image / compose flow, not Vite.
+
+Prepare `.env` on the server:
+
+```sh
+cp .env.example .env
+```
+
+At minimum set:
+
+```env
+DATABASE_URL=postgres://user:password@host:port/pocker?sslmode=require
+APP_IMAGE=127.0.0.1:5000/pocker
+APP_TAG=latest
+APP_HOST=test.example.com
+POCKER_FRONTEND_MODE=react
+```
+
+If you use the local registry flow on the server:
+
+```sh
+docker compose -f docker-compose.registry.yml up -d
+./scripts/release-local-registry.sh
+docker compose up -d
+```
+
+If you want the one-command update flow on the server:
+
+```sh
+bash ./scripts/server-deploy.sh
+```
+
+What this gives you on the test server:
+
+- containerized app behind Traefik from `docker-compose.yml`
+- app served by Node on internal port `3000`
+- public routing via `APP_HOST`
+- React frontend served from the built image, not from a dev server
 
 ## Operations Baseline
 

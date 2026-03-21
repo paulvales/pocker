@@ -312,6 +312,15 @@ function createRoomRegistry({
         return sessions.map(buildPlayer);
     }
 
+    async function hasActiveParticipants(roomId) {
+        const sessions = await roomRuntimeStore.listActiveSessions({
+            roomId,
+            activeCutoffAt: getActiveCutoffAt(),
+        });
+
+        return sessions.length > 0;
+    }
+
     function bindSocketToSession(socketId, { roomId, sessionId }) {
         for (const [knownSocketId, presence] of presenceBySocket.entries()) {
             if (
@@ -457,7 +466,7 @@ function createRoomRegistry({
             });
             const wantsAdmin = Boolean(isAdmin);
 
-            if (wantsAdmin) {
+            if (wantsAdmin && await hasActiveParticipants(normalizedRoomId)) {
                 const reservedAdminSession = await roomRuntimeStore.findReservedAdminSession({
                     roomId: normalizedRoomId,
                     excludeSessionId: recoveryCandidate?.sessionId || '',
@@ -773,6 +782,10 @@ function createRoomRegistry({
 
         const roomRecord = await roomRuntimeStore.getRoom(normalizedRoomId);
         if (!roomRecord) {
+            return true;
+        }
+
+        if (!await hasActiveParticipants(normalizedRoomId)) {
             return true;
         }
 

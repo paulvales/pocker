@@ -26,6 +26,60 @@ describe('HistoryPage', () => {
     vi.unstubAllGlobals();
   });
 
+  it('initializes fomantic dropdown widgets when jQuery is available', async () => {
+    const dropdownCalls = new Map<string, ReturnType<typeof vi.fn>>();
+    const jqueryMock = vi.fn((element: Element) => {
+      const dropdown = vi.fn();
+      dropdownCalls.set((element as HTMLElement).id, dropdown);
+      return { dropdown };
+    });
+
+    vi.stubGlobal('$', jqueryMock);
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          items: [],
+          meta: {
+            rooms: ['alpha-room'],
+            participants: ['Viewer'],
+            estimateTypes: ['points'],
+            pagination: {
+              page: 1,
+              pageSize: 25,
+              totalItems: 0,
+              totalPages: 1,
+              hasPreviousPage: false,
+              hasNextPage: false,
+            },
+          },
+        }),
+    } as Response);
+
+    render(
+      <MemoryRouter initialEntries={['/history']}>
+        <Routes>
+          <Route path="/history" element={<HistoryPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(jqueryMock).toHaveBeenCalled();
+      expect(dropdownCalls.get('roomDropdown')).toBeDefined();
+      expect(dropdownCalls.get('participantDropdown')).toBeDefined();
+      expect(dropdownCalls.get('estimateTypeDropdown')).toBeDefined();
+      expect(dropdownCalls.get('pageSizeDropdown')).toBeDefined();
+    });
+
+    expect(dropdownCalls.get('roomDropdown')).toHaveBeenCalledWith('refresh');
+    expect(dropdownCalls.get('participantDropdown')).toHaveBeenCalledWith('refresh');
+    expect(dropdownCalls.get('estimateTypeDropdown')).toHaveBeenCalledWith('refresh');
+    expect(dropdownCalls.get('pageSizeDropdown')).toHaveBeenCalledWith('refresh');
+  });
+
   it('renders history items and normalizes the page query from backend pagination', async () => {
     fetchMock.mockResolvedValue({
       ok: true,

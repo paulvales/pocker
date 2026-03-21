@@ -36,6 +36,7 @@ export function createRoomSessionInitialState(
     estimationMode: snapshot.estimationMode,
     connectionStatus: 'idle',
     socketId: null,
+    currentPlayerId: null,
     adminSeatAvailable: null,
     lastError: null,
     lastUserEvent: null,

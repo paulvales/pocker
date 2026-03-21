@@ -219,6 +219,16 @@ function registerRoomHandlers({
         return snapshot;
     }
 
+    function emitRoomUserEvent(roomId, {
+        message,
+        type = 'info',
+    }) {
+        io.to(roomId).emit(SOCKET_SERVER_EVENTS.userEvent, {
+            message,
+            type,
+        });
+    }
+
     function getReactionTimerKey(roomId, socketId) {
         return `${roomId}:${socketId}`;
     }
@@ -282,9 +292,9 @@ function registerRoomHandlers({
         );
 
         if (emitLeaveEvent) {
-            io.to(roomId).emit(SOCKET_SERVER_EVENTS.userEvent, {
-                message: `${leaveResult.player.name} disconnected`,
-                type: 'error',
+            emitRoomUserEvent(roomId, {
+                message: `${leaveResult.player.name} отключился`,
+                type: 'warning',
             });
         }
 
@@ -444,10 +454,13 @@ function registerRoomHandlers({
                 });
                 const snapshot = await emitPlayersUpdate(joinResult.roomId);
 
-                respond(createSocketAckSuccess(createRoomSnapshotPayload(snapshot)));
+                respond(createSocketAckSuccess({
+                    ...createRoomSnapshotPayload(snapshot),
+                    currentPlayerId: joinResult.player.id,
+                }));
 
-                io.to(joinResult.roomId).emit(SOCKET_SERVER_EVENTS.userEvent, {
-                    message: `${joinResult.player.name} joined`,
+                emitRoomUserEvent(joinResult.roomId, {
+                    message: `${joinResult.player.name} подключился`,
                     type: 'success',
                 });
                 socketLogger.info('room.joined', {
@@ -675,6 +688,10 @@ function registerRoomHandlers({
                 }
 
                 io.to(roomId).emit(SOCKET_SERVER_EVENTS.revealUpdate, revealed);
+                // emitRoomUserEvent(roomId, {
+                //     message: `${membership.player.name} revealed votes`,
+                //     type: 'success',
+                // });
                 await writeAuditEvent(resolveSaasContext(), {
                     eventType: 'room.votes.revealed',
                     roomId,
@@ -703,6 +720,10 @@ function registerRoomHandlers({
                 io.to(roomId).emit(SOCKET_SERVER_EVENTS.votesUpdate, resetResult.players);
                 io.to(roomId).emit(SOCKET_SERVER_EVENTS.revealUpdate, resetResult.revealed);
                 io.to(roomId).emit(SOCKET_SERVER_EVENTS.noteUpdate, resetResult.note);
+                emitRoomUserEvent(roomId, {
+                    message: 'Оценки сброшены',
+                    type: 'warning',
+                });
                 await writeAuditEvent(resolveSaasContext(), {
                     eventType: 'room.reset',
                     roomId,
