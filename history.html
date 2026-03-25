@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>История оценок</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.2/dist/semantic.min.css">
-    <link rel="shortcut icon" href="favicon.svg" type="image/x-icon" sizes="32x32"/>
+    <title>История оценок - Scrum Poker</title>
+    <meta name="description" content="Журнал сохранённых оценок по задачам с фильтрами по комнате, задаче, участнику, типу оценки и дате.">
+    <link rel="stylesheet" href="/public/vendor/semantic.min.css">
+    <link rel="shortcut icon" href="/favicon.svg" type="image/x-icon" sizes="32x32"/>
     <style>
         body {
             background:
@@ -135,59 +136,59 @@
     </style>
 </head>
 <body>
-<div class="ui container history-shell">
-    <div class="history-hero ui clearing basic segment">
+<main class="ui container history-shell">
+    <header class="history-hero ui clearing basic segment">
         <div>
             <h1 class="ui header">История оценок</h1>
             <p>Журнал сохранённых оценок по задачам с фильтрами по комнате, задаче, участнику, типу оценки и дате.</p>
         </div>
-        <div class="history-toolbar">
-            <a class="ui button" href="/">
-                <i class="arrow left icon"></i>
+        <nav class="history-toolbar" aria-label="Навигация">
+            <a class="ui button" href="/" aria-label="Вернуться на главную">
+                <i class="arrow left icon" aria-hidden="true"></i>
                 Назад
             </a>
-            <button class="ui primary button" id="refreshBtn" type="button">
-                <i class="sync alternate icon"></i>
+            <button class="ui primary button" id="refreshBtn" type="button" aria-label="Обновить данные">
+                <i class="sync alternate icon" aria-hidden="true"></i>
                 Обновить
             </button>
-        </div>
-    </div>
+        </nav>
+    </header>
 
-    <div class="ui segment history-card">
-        <form class="ui form" id="filtersForm">
+    <section class="ui segment history-card" aria-label="Фильтры">
+        <form class="ui form" id="filtersForm" role="search" aria-label="Фильтры истории">
             <input id="pageFilter" name="page" type="hidden" value="1">
-            <div class="fields">
+            <div class="fields" role="group" aria-label="Поля фильтров">
                 <div class="field">
                     <label for="roomDropdown">Комната</label>
-                    <div class="ui fluid search selection clearable dropdown" id="roomDropdown">
+                    <div class="ui fluid search selection clearable dropdown" id="roomDropdown" role="combobox" aria-label="Выбор комнаты">
                         <input type="hidden" name="roomId">
-                        <i class="dropdown icon"></i>
+                        <i class="dropdown icon" aria-hidden="true"></i>
                         <div class="default text">Все</div>
                         <div class="menu"></div>
                     </div>
                 </div>
                 <div class="field">
                     <label for="taskIdFilter">Ид задачи</label>
-                    <input id="taskIdFilter" name="taskId" type="text" placeholder="APP-12">
+                    <input id="taskIdFilter" name="taskId" type="text" placeholder="APP-12" aria-label="Фильтр по идентификатору задачи">
                 </div>
                 <div class="field">
                     <label for="participantDropdown">Участник</label>
-                    <div class="ui fluid search selection clearable dropdown" id="participantDropdown">
+                    <div class="ui fluid search selection clearable dropdown" id="participantDropdown" role="combobox" aria-label="Выбор участника">
                         <input type="hidden" name="participantName">
-                        <i class="dropdown icon"></i>
+                        <i class="dropdown icon" aria-hidden="true"></i>
                         <div class="default text">Все участники</div>
                         <div class="menu"></div>
                     </div>
                 </div>
                 <div class="field">
                     <label for="estimateFilter">Оценка</label>
-                    <input id="estimateFilter" name="estimate" type="text" placeholder="5">
+                    <input id="estimateFilter" name="estimate" type="text" placeholder="5" aria-label="Фильтр по оценке">
                 </div>
                 <div class="field">
                     <label for="estimateTypeDropdown">Тип</label>
-                    <div class="ui fluid selection clearable dropdown" id="estimateTypeDropdown">
+                    <div class="ui fluid selection clearable dropdown" id="estimateTypeDropdown" role="listbox" aria-label="Выбор типа оценки">
                         <input type="hidden" name="estimateType">
-                        <i class="dropdown icon"></i>
+                        <i class="dropdown icon" aria-hidden="true"></i>
                         <div class="default text">Поинты и часы</div>
                         <div class="menu">
                             <div class="item" data-value="points">Поинты</div>
@@ -197,29 +198,29 @@
                 </div>
                 <div class="field">
                     <label for="recordedOnFilter">Дата</label>
-                    <input id="recordedOnFilter" name="recordedOn" type="date">
+                    <input id="recordedOnFilter" name="recordedOn" type="date" aria-label="Фильтр по дате">
                 </div>
             </div>
-            <div class="ui buttons">
+            <div class="ui buttons" role="group" aria-label="Действия с фильтрами">
                 <button class="ui primary button" type="submit">Применить</button>
-                <div class="or"></div>
-                <button class="ui button" id="resetFiltersBtn" type="button">Сбросить</button>
+                <div class="or" aria-hidden="true"></div>
+                <button class="ui button" id="resetFiltersBtn" type="button" aria-label="Сбросить все фильтры">Сбросить</button>
             </div>
         </form>
-    </div>
+    </section>
 
-    <div class="ui segment history-card">
-        <div class="history-summary">
+    <section class="ui segment history-card" aria-label="Таблица истории">
+        <div class="history-summary" role="status" aria-live="polite">
             <div class="history-summary-main">
                 <span>Всего записей: <strong id="historyCount">0</strong></span>
                 <span id="historyRange">Показано 0-0</span>
                 <span id="historyStatus">Загрузка...</span>
             </div>
             <div class="history-page-controls">
-                <span>На странице</span>
-                <div class="ui compact selection dropdown" id="pageSizeDropdown">
+                <label for="pageSizeDropdown">На странице</label>
+                <div class="ui compact selection dropdown" id="pageSizeDropdown" role="listbox" aria-label="Количество записей на странице">
                     <input type="hidden" name="pageSize" value="25">
-                    <i class="dropdown icon"></i>
+                    <i class="dropdown icon" aria-hidden="true"></i>
                     <div class="text">25</div>
                     <div class="menu">
                         <div class="item" data-value="10">10</div>
@@ -232,35 +233,35 @@
         </div>
 
         <div class="history-table-wrap">
-            <table class="ui celled striped table history-table" id="historyTable" style="display:none;">
+            <table class="ui celled striped table history-table" id="historyTable" style="display:none;" aria-label="Таблица истории оценок">
                 <thead>
                 <tr>
-                    <th>Комната</th>
-                    <th>Ид задачи</th>
-                    <th>Участник</th>
-                    <th>Оценка</th>
-                    <th>Тип</th>
-                    <th>Дата оценки</th>
+                    <th scope="col">Комната</th>
+                    <th scope="col">Ид задачи</th>
+                    <th scope="col">Участник</th>
+                    <th scope="col">Оценка</th>
+                    <th scope="col">Тип</th>
+                    <th scope="col">Дата оценки</th>
                 </tr>
                 </thead>
                 <tbody id="historyTableBody"></tbody>
             </table>
         </div>
 
-        <div class="ui message history-empty" id="historyEmptyState" style="display:none;">
+        <div class="ui message history-empty" id="historyEmptyState" style="display:none;" role="status">
             По текущим фильтрам данных нет.
         </div>
 
-        <div class="history-pagination-wrap" id="historyPaginationWrap" style="display:none;">
-            <div class="ui pagination menu" id="historyPagination"></div>
-        </div>
-    </div>
+        <nav class="history-pagination-wrap" id="historyPaginationWrap" style="display:none;" aria-label="Пагинация">
+            <div class="ui pagination menu" id="historyPagination" role="navigation"></div>
+        </nav>
+    </section>
 
-    <div class="footer-note">v __APP_VERSION__</div>
-</div>
+    <footer class="footer-note" role="contentinfo">v __APP_VERSION__</footer>
+</main>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.2/dist/semantic.min.js"></script>
+<script src="/public/vendor/jquery-3.6.0.min.js"></script>
+<script src="/public/vendor/semantic.min.js"></script>
 <script>
     const isFileMode = window.location.protocol === 'file:';
     const apiBaseUrl = isFileMode ? 'https://pocker.webpaul.ru' : '';

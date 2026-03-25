@@ -388,4 +388,10 @@ module.exports = {
     HISTORY_TABLE_NAME,
     HISTORY_UNIQUE_CONSTRAINT_NAME,
     createEstimationHistoryStore,
+    normalizeText,
+    normalizeRecordedAt,
+    normalizePositiveInteger,
+    normalizeEntry,
+    mapRowToEntry,
+    buildPoolConfig,
 };
