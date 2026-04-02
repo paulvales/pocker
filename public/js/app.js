@@ -11,6 +11,8 @@ let mySocketId = null;
 let name = '';
 let revealed = false;
 let isAdmin = false;
+let pendingVoteValue = null;
+let restoreSessionPromise = null;
 const VOTE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const availableReactions = [
     {value: '👍', label: 'Нравится'},
@@ -26,6 +28,28 @@ let currentReactionValue = null;
 
 socket.on('connect', () => {
     mySocketId = socket.id;
+
+    if (!name || !roomId) {
+        return;
+    }
+
+    restoreSessionAfterReconnect({silent: true})
+        .then(restored => {
+            if (!restored) {
+                return;
+            }
+
+            const savedVote = getStoredValueWithTTL(getVoteKey());
+            if (savedVote) {
+                return submitVote(savedVote, {
+                    silent: true,
+                    retryOnForbidden: false
+                });
+            }
+
+            return null;
+        })
+        .catch(() => {});
 });
 
 $('#iAmAdmin').on('click', function () {
@@ -467,6 +491,97 @@ function emitWithAck(eventName, payload, timeoutMs = 4000) {
     });
 }
 
+function updateVoteButtonsPendingState() {
+    const hasPendingVote = pendingVoteValue !== null;
+
+    $('#voteButtons button').each(function () {
+        const buttonValue = $(this).text().trim();
+        const isPendingButton = hasPendingVote && buttonValue === pendingVoteValue;
+        $(this)
+            .prop('disabled', hasPendingVote)
+            .toggleClass('disabled', hasPendingVote)
+            .toggleClass('loading', isPendingButton);
+    });
+}
+
+function mapVoteError(errorCode) {
+    if (errorCode === 'FORBIDDEN') return 'Соединение с комнатой устарело. Попробуйте ещё раз';
+    if (errorCode === 'ACK_TIMEOUT') return 'Сервер не подтвердил установку оценки';
+    if (errorCode === 'SOCKET_DISCONNECTED') return 'Нет подключения к серверу';
+    return `Ошибка установки оценки: ${errorCode || 'UNKNOWN_ERROR'}`;
+}
+
+async function restoreSessionAfterReconnect({silent = false} = {}) {
+    if (!name || !roomId) {
+        return false;
+    }
+
+    if (restoreSessionPromise) {
+        return restoreSessionPromise;
+    }
+
+    restoreSessionPromise = (async () => {
+        const result = await emitWithAck('join', {roomId, name, isAdmin});
+        if (!result || !result.ok) {
+            if (!silent) {
+                $.toast({
+                    class: 'error',
+                    message: mapJoinError(result && result.error)
+                });
+            }
+            return false;
+        }
+
+        applyRoomState(result);
+        return true;
+    })();
+
+    try {
+        return await restoreSessionPromise;
+    } finally {
+        restoreSessionPromise = null;
+    }
+}
+
+async function submitVote(value, {silent = false, retryOnForbidden = true} = {}) {
+    if (!roomId || !name) {
+        return false;
+    }
+
+    pendingVoteValue = String(value);
+    updateVoteButtonsPendingState();
+
+    let result = await emitWithAck('vote', {roomId, value: pendingVoteValue});
+
+    if ((!result || !result.ok) && retryOnForbidden && result && result.error === 'FORBIDDEN') {
+        const restored = await restoreSessionAfterReconnect({silent});
+        if (restored) {
+            result = await emitWithAck('vote', {roomId, value: pendingVoteValue});
+        }
+    }
+
+    pendingVoteValue = null;
+    updateVoteButtonsPendingState();
+
+    if (!result || !result.ok) {
+        if (!silent) {
+            $.toast({
+                class: 'error',
+                message: mapVoteError(result && result.error)
+            });
+        }
+        socket.emit('get_players', roomId);
+        return false;
+    }
+
+    try {
+        setStoredValueWithTTL(getVoteKey(), String(value));
+    } catch (e) {
+    }
+
+    return true;
+}
+
 function mapJoinError(errorCode) {
     if (errorCode === 'ACK_TIMEOUT') return 'Сервер не ответил на запрос входа';
     if (errorCode === 'SOCKET_DISCONNECTED') return 'Нет подключения к серверу';
@@ -573,7 +688,10 @@ async function joinSession(newName, newIsAdmin) {
 
     const savedVote = getStoredValueWithTTL(getVoteKey());
     if (savedVote) {
-        socket.emit('vote', {roomId, value: savedVote});
+        await submitVote(savedVote, {
+            silent: true,
+            retryOnForbidden: false
+        });
     }
     $('#playerName').val(name);
     $('#playerName').addClass('disabled');
@@ -962,17 +1080,14 @@ function renderPlayers(players) {
         availableValues.forEach(p => {
             const isOriginal = originalPoints.includes(p);
             const btn = $(`<button class="ui big button ${isOriginal ? 'orange' : ''}">${p}</button>`);
-            btn.click(() => {
-                socket.emit('vote', {roomId, value: p});
-                try {
-                    setStoredValueWithTTL(getVoteKey(), p);
-                } catch (e) {
-                }
+            btn.click(async () => {
+                await submitVote(p);
             });
             if (current.vote === p) btn.addClass('blue');
             $('#voteButtons').append(btn);
         });
         $('#voteButtons').show();
+        updateVoteButtonsPendingState();
     }
     renderReactionPicker(current);
 

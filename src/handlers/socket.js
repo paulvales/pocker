@@ -271,13 +271,23 @@ function createSocketHandler({
             }
         });
 
-        socket.on('vote', ({ roomId, value } = {}) => {
+        socket.on('vote', ({ roomId, value } = {}, callback) => {
+            const respond = typeof callback === 'function' ? callback : () => {};
+
             try {
                 roomRegistry.assertMembership(roomId, socket.id);
                 const players = roomRegistry.recordVote(roomId, socket.id, value);
                 io.to(roomId).emit('votes_update', players);
+                respond({
+                    ok: true,
+                    players,
+                    value,
+                });
             } catch (error) {
-                // ignore unauthorized vote attempts
+                respond({
+                    ok: false,
+                    error: error.message || 'UNKNOWN_ERROR',
+                });
             }
         });
 

@@ -549,6 +549,293 @@ describe('socket server', () => {
     }
   });
 
+  test('acknowledges vote updates and persists the latest value', async () => {
+    const adminClient = await connectClient(port);
+    const viewerClient = await connectClient(port);
+
+    try {
+      const createResult = await createRoom(adminClient, 'vote-ack-room');
+      const roomId = createResult.room.id;
+
+      await joinRoom(adminClient, {
+        roomId,
+        name: 'Admin',
+        isAdmin: true,
+      });
+      await joinRoom(viewerClient, {
+        roomId,
+        name: 'Viewer',
+      });
+
+      const firstVoteUpdate = waitForEvent(
+        adminClient,
+        'votes_update',
+        players => players.some(player => player.name === 'Viewer' && player.vote === '3'),
+      );
+
+      await expect(emitWithAck(viewerClient, 'vote', {
+        roomId,
+        value: '3',
+      })).resolves.toEqual(expect.objectContaining({
+        ok: true,
+        value: '3',
+      }));
+      await expect(firstVoteUpdate).resolves.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Viewer', vote: '3' }),
+        ]),
+      );
+
+      const secondVoteUpdate = waitForEvent(
+        adminClient,
+        'votes_update',
+        players => players.some(player => player.name === 'Viewer' && player.vote === '5'),
+      );
+
+      await expect(emitWithAck(viewerClient, 'vote', {
+        roomId,
+        value: '5',
+      })).resolves.toEqual(expect.objectContaining({
+        ok: true,
+        value: '5',
+      }));
+      await expect(secondVoteUpdate).resolves.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Viewer', vote: '5' }),
+        ]),
+      );
+    } finally {
+      adminClient.close();
+      viewerClient.close();
+    }
+  });
+
+  test('returns FORBIDDEN for votes sent after reconnect without rejoining', async () => {
+    const adminClient = await connectClient(port);
+    const viewerClient = await connectClient(port);
+    let reconnectedClient = null;
+
+    try {
+      const createResult = await createRoom(adminClient, 'vote-reconnect-room');
+      const roomId = createResult.room.id;
+
+      await joinRoom(adminClient, {
+        roomId,
+        name: 'Admin',
+        isAdmin: true,
+      });
+      await joinRoom(viewerClient, {
+        roomId,
+        name: 'Viewer',
+      });
+
+      viewerClient.close();
+      reconnectedClient = await connectClient(port);
+
+      await expect(emitWithAck(reconnectedClient, 'vote', {
+        roomId,
+        value: '5',
+      })).resolves.toEqual({
+        ok: false,
+        error: 'FORBIDDEN',
+      });
+    } finally {
+      adminClient.close();
+      viewerClient.close();
+      if (reconnectedClient) {
+        reconnectedClient.close();
+      }
+    }
+  });
+
+  test('keeps the latest vote when a participant quickly changes 3 to 5', async () => {
+    const adminClient = await connectClient(port);
+    const viewerClient = await connectClient(port);
+    const lateClient = await connectClient(port);
+
+    try {
+      const createResult = await createRoom(adminClient, 'vote-change-room');
+      const roomId = createResult.room.id;
+
+      await joinRoom(adminClient, {
+        roomId,
+        name: 'Admin',
+        isAdmin: true,
+      });
+      await joinRoom(viewerClient, {
+        roomId,
+        name: 'Viewer',
+      });
+
+      const latestVoteUpdate = waitForEvent(
+        adminClient,
+        'votes_update',
+        players => players.some(player => player.name === 'Viewer' && player.vote === '5'),
+      );
+
+      await Promise.all([
+        emitWithAck(viewerClient, 'vote', {
+          roomId,
+          value: '3',
+        }),
+        emitWithAck(viewerClient, 'vote', {
+          roomId,
+          value: '5',
+        }),
+      ]);
+
+      await expect(latestVoteUpdate).resolves.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Viewer', vote: '5' }),
+        ]),
+      );
+
+      const lateJoinState = await joinRoom(lateClient, {
+        roomId,
+        name: 'Late',
+      });
+
+      expect(lateJoinState.players).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Viewer', vote: '5' }),
+        ]),
+      );
+    } finally {
+      adminClient.close();
+      viewerClient.close();
+      lateClient.close();
+    }
+  });
+
+  test('allows voting after reconnect once the client rejoins the room', async () => {
+    const adminClient = await connectClient(port);
+    const viewerClient = await connectClient(port);
+    let reconnectedClient = null;
+
+    try {
+      const createResult = await createRoom(adminClient, 'vote-rejoin-room');
+      const roomId = createResult.room.id;
+
+      await joinRoom(adminClient, {
+        roomId,
+        name: 'Admin',
+        isAdmin: true,
+      });
+      await joinRoom(viewerClient, {
+        roomId,
+        name: 'Viewer',
+      });
+
+      viewerClient.close();
+      reconnectedClient = await connectClient(port);
+
+      await expect(joinRoom(reconnectedClient, {
+        roomId,
+        name: 'Viewer',
+      })).resolves.toEqual(expect.objectContaining({
+        ok: true,
+      }));
+
+      const voteUpdate = waitForEvent(
+        adminClient,
+        'votes_update',
+        players => players.some(player => player.name === 'Viewer' && player.vote === '8'),
+      );
+
+      await expect(emitWithAck(reconnectedClient, 'vote', {
+        roomId,
+        value: '8',
+      })).resolves.toEqual(expect.objectContaining({
+        ok: true,
+        value: '8',
+      }));
+      await expect(voteUpdate).resolves.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Viewer', vote: '8' }),
+        ]),
+      );
+    } finally {
+      adminClient.close();
+      viewerClient.close();
+      if (reconnectedClient) {
+        reconnectedClient.close();
+      }
+    }
+  });
+
+  test('preserves the latest vote across repeated reopen-style reconnect cycles', async () => {
+    const adminClient = await connectClient(port);
+    let activeViewerClient = await connectClient(port);
+    const voteSequence = ['3', '5', '8', '13', '2'];
+
+    try {
+      const createResult = await createRoom(adminClient, 'vote-reopen-cycles-room');
+      const roomId = createResult.room.id;
+
+      await joinRoom(adminClient, {
+        roomId,
+        name: 'Admin',
+        isAdmin: true,
+      });
+      await joinRoom(activeViewerClient, {
+        roomId,
+        name: 'Viewer',
+      });
+
+      for (const value of voteSequence) {
+        const voteUpdate = waitForEvent(
+          adminClient,
+          'votes_update',
+          players => players.some(player => player.name === 'Viewer' && player.vote === value),
+        );
+
+        await expect(emitWithAck(activeViewerClient, 'vote', {
+          roomId,
+          value,
+        })).resolves.toEqual(expect.objectContaining({
+          ok: true,
+          value,
+        }));
+        await expect(voteUpdate).resolves.toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ name: 'Viewer', vote: value }),
+          ]),
+        );
+
+        activeViewerClient.close();
+        activeViewerClient = await connectClient(port);
+        await expect(joinRoom(activeViewerClient, {
+          roomId,
+          name: 'Viewer',
+        })).resolves.toEqual(expect.objectContaining({
+          ok: true,
+          players: expect.arrayContaining([
+            expect.objectContaining({ name: 'Viewer', vote: null }),
+          ]),
+        }));
+      }
+
+      const observerClient = await connectClient(port);
+      try {
+        const observerState = await joinRoom(observerClient, {
+          roomId,
+          name: 'Observer',
+        });
+
+        expect(observerState.players).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ name: 'Viewer', vote: null }),
+          ]),
+        );
+      } finally {
+        observerClient.close();
+      }
+    } finally {
+      adminClient.close();
+      activeViewerClient.close();
+    }
+  });
+
   test('records revealed estimates into history, stores the room, and overwrites repeated estimates', async () => {
     const adminClient = await connectClient(port);
     const viewerClient = await connectClient(port);
