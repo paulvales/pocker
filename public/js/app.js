@@ -4,6 +4,8 @@ const socket = isFileMode ? io(apiBaseUrl) : io();
 
 const ROOM_ID_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N}_-]{0,63}$/u;
 const RESERVED_ROOM_IDS = new Set(['health', 'version', 'index-html', 'robots-txt', 'socket-io']);
+const SESSION_ID_STORAGE_KEY = 'pockerSessionId';
+const DEFAULT_HEARTBEAT_INTERVAL_MS = 15000;
 
 let roomId = '';
 let currentRoomMeta = null;
@@ -25,6 +27,30 @@ const availableReactions = [
 ];
 let reactionPickerOpen = false;
 let currentReactionValue = null;
+let heartbeatIntervalMs = DEFAULT_HEARTBEAT_INTERVAL_MS;
+let heartbeatTimerId = null;
+const participantSessionId = getOrCreateParticipantSessionId();
+
+function createFallbackSessionId() {
+    return `session-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getOrCreateParticipantSessionId() {
+    try {
+        const currentSessionId = sessionStorage.getItem(SESSION_ID_STORAGE_KEY);
+        if (currentSessionId && currentSessionId.trim()) {
+            return currentSessionId.trim();
+        }
+
+        const generatedSessionId = window.crypto && typeof window.crypto.randomUUID === 'function'
+            ? window.crypto.randomUUID()
+            : createFallbackSessionId();
+        sessionStorage.setItem(SESSION_ID_STORAGE_KEY, generatedSessionId);
+        return generatedSessionId;
+    } catch (error) {
+        return createFallbackSessionId();
+    }
+}
 
 socket.on('connect', () => {
     mySocketId = socket.id;
@@ -51,6 +77,27 @@ socket.on('connect', () => {
         })
         .catch(() => {});
 });
+
+function stopHeartbeat() {
+    if (heartbeatTimerId) {
+        clearInterval(heartbeatTimerId);
+        heartbeatTimerId = null;
+    }
+}
+
+function startHeartbeat() {
+    stopHeartbeat();
+    if (!name || !roomId) {
+        return;
+    }
+
+    heartbeatTimerId = setInterval(() => {
+        if (!socket.connected || !name || !roomId) {
+            return;
+        }
+        socket.emit('heartbeat', { roomId });
+    }, heartbeatIntervalMs);
+}
 
 $('#iAmAdmin').on('click', function () {
     const next = $('#isAdmin').val() === '0' ? '1' : '0';
@@ -521,7 +568,12 @@ async function restoreSessionAfterReconnect({silent = false} = {}) {
     }
 
     restoreSessionPromise = (async () => {
-        const result = await emitWithAck('join', {roomId, name, isAdmin});
+        const result = await emitWithAck('join', {
+            roomId,
+            name,
+            isAdmin,
+            sessionId: participantSessionId
+        });
         if (!result || !result.ok) {
             if (!silent) {
                 $.toast({
@@ -663,7 +715,12 @@ async function joinSession(newName, newIsAdmin) {
     }
 
     $('#joinBtn').addClass('disabled loading');
-    const result = await emitWithAck('join', {roomId, name: newName, isAdmin: newIsAdmin});
+    const result = await emitWithAck('join', {
+        roomId,
+        name: newName,
+        isAdmin: newIsAdmin,
+        sessionId: participantSessionId
+    });
     $('#joinBtn').removeClass('disabled loading');
 
     if (!result || !result.ok) {
@@ -786,6 +843,7 @@ $('#joinBtn').click(async () => {
 });
 
 $('#changeNameBtn').click(() => {
+    stopHeartbeat();
     try {
         localStorage.removeItem(getVoteKey());
     } catch (e) {
@@ -939,6 +997,10 @@ function applyRoomState(roomState = {}) {
         estimationMode = normalizeEstimationMode(roomState.estimationMode);
     }
 
+    if (Number.isFinite(roomState.heartbeatIntervalMs) && roomState.heartbeatIntervalMs >= 5000) {
+        heartbeatIntervalMs = roomState.heartbeatIntervalMs;
+    }
+
     if (roomState.taskState) {
         taskState = normalizeTaskState(roomState.taskState);
         renderTaskWheel();
@@ -950,6 +1012,10 @@ function applyRoomState(roomState = {}) {
 
     if (typeof roomState.note === 'string') {
         applyNote(roomState.note);
+    }
+
+    if (name && roomId) {
+        startHeartbeat();
     }
 }
 

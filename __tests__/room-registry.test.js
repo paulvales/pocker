@@ -222,6 +222,37 @@ describe('createRoomRegistry', () => {
             });
             expect(result.roomId).toBe('new-room');
         });
+
+        test('replaces existing player when rejoining with the same sessionId', () => {
+            registry.createRoom({ roomSuffix: 'test' });
+            registry.joinRoom({
+                roomId: 'test',
+                socketId: 'socket1',
+                sessionId: 'session-a',
+                name: 'Alice',
+            });
+
+            registry.recordVote('test', 'socket1', '5');
+            registry.recordReaction('test', 'socket1', AVAILABLE_REACTIONS[0]);
+
+            const rejoinResult = registry.joinRoom({
+                roomId: 'test',
+                socketId: 'socket2',
+                sessionId: 'session-a',
+                name: 'Alice',
+            });
+            const snapshot = registry.getSnapshot('test');
+            const alicePlayers = snapshot.players.filter(player => player.name === 'Alice');
+
+            expect(rejoinResult.replacedSocketIds).toEqual(['socket1']);
+            expect(alicePlayers).toHaveLength(1);
+            expect(alicePlayers[0]).toEqual(expect.objectContaining({
+                id: 'socket2',
+                vote: '5',
+                reaction: AVAILABLE_REACTIONS[0],
+                sessionId: 'session-a',
+            }));
+        });
     });
 
     describe('leaveRoom', () => {
@@ -322,6 +353,52 @@ describe('createRoomRegistry', () => {
             expect(result.players[0].vote).toBeNull();
             expect(result.note).toBe('');
             expect(result.revealed).toBe(false);
+        });
+    });
+
+    describe('stale player cleanup', () => {
+        test('updates player heartbeat timestamp', () => {
+            registry.createRoom({ roomSuffix: 'test' });
+            registry.joinRoom({
+                roomId: 'test',
+                socketId: 'socket1',
+                name: 'Alice',
+            });
+
+            const heartbeatAt = registry.recordHeartbeat('test', 'socket1', 12345);
+            const snapshot = registry.getSnapshot('test');
+
+            expect(heartbeatAt).toBe(12345);
+            expect(snapshot.players[0].lastHeartbeatAt).toBe(12345);
+        });
+
+        test('removes only stale players with inactive sockets', () => {
+            registry.createRoom({ roomSuffix: 'test' });
+            registry.joinRoom({
+                roomId: 'test',
+                socketId: 'socket1',
+                name: 'Alice',
+            });
+            registry.joinRoom({
+                roomId: 'test',
+                socketId: 'socket2',
+                name: 'Bob',
+            });
+
+            registry.recordHeartbeat('test', 'socket1', 1_000);
+            registry.recordHeartbeat('test', 'socket2', 1_900);
+
+            const removed = registry.removeStalePlayers({
+                ttlMs: 500,
+                now: 2_000,
+                isSocketActive: socketId => socketId === 'socket2',
+            });
+            const snapshot = registry.getSnapshot('test');
+
+            expect(removed).toHaveLength(1);
+            expect(removed[0].player.name).toBe('Alice');
+            expect(snapshot.players).toHaveLength(1);
+            expect(snapshot.players[0].name).toBe('Bob');
         });
     });
 

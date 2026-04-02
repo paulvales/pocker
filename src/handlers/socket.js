@@ -12,7 +12,34 @@ function createSocketHandler({
     const { normalizeTaskState } = require('../../room-registry');
     const log = createChildLogger({ module: 'socket' });
     const REACTION_TTL_MS = 3000;
+    const DEFAULT_HEARTBEAT_INTERVAL_MS = 15000;
+    const DEFAULT_STALE_PLAYER_TTL_MS = 120000;
+    const DEFAULT_STALE_CLEANUP_INTERVAL_MS = 30000;
     const reactionClearTimers = new Map();
+
+    function parseEnvMilliseconds(rawValue, fallback, minimum) {
+        const parsed = Number.parseInt(rawValue, 10);
+        if (!Number.isFinite(parsed) || parsed < minimum) {
+            return fallback;
+        }
+        return parsed;
+    }
+
+    const HEARTBEAT_INTERVAL_MS = parseEnvMilliseconds(
+        process.env.PLAYER_HEARTBEAT_INTERVAL_MS,
+        DEFAULT_HEARTBEAT_INTERVAL_MS,
+        5000,
+    );
+    const STALE_PLAYER_TTL_MS = parseEnvMilliseconds(
+        process.env.STALE_PLAYER_TTL_MS,
+        DEFAULT_STALE_PLAYER_TTL_MS,
+        HEARTBEAT_INTERVAL_MS * 2,
+    );
+    const STALE_CLEANUP_INTERVAL_MS = parseEnvMilliseconds(
+        process.env.STALE_CLEANUP_INTERVAL_MS,
+        DEFAULT_STALE_CLEANUP_INTERVAL_MS,
+        10000,
+    );
 
     function ensureYouTrackConfig() {
         if (!YOU_TRACK_BASE_URL || !YOU_TRACK_TOKEN) {
@@ -96,6 +123,36 @@ function createSocketHandler({
         reactionClearTimers.set(timerKey, timer);
     }
 
+    function runStalePlayerCleanup() {
+        let removedPlayers = [];
+        try {
+            removedPlayers = roomRegistry.removeStalePlayers({
+                ttlMs: STALE_PLAYER_TTL_MS,
+                isSocketActive: socketId => {
+                    const trackedSocket = io.sockets.sockets.get(socketId);
+                    return Boolean(trackedSocket && trackedSocket.connected);
+                },
+            });
+        } catch (error) {
+            log.error({ err: error }, 'Failed to cleanup stale players');
+            return;
+        }
+
+        removedPlayers.forEach(({ roomId, roomState, player }) => {
+            clearReactionTimer(roomId, player.id);
+            io.to(roomId).emit('players_update', Object.values(roomState.players));
+            io.to(roomId).emit('user_event', {
+                message: `${player.name} отключился (таймаут соединения)`,
+                type: 'warning',
+            });
+        });
+    }
+
+    const staleCleanupTimer = setInterval(runStalePlayerCleanup, STALE_CLEANUP_INTERVAL_MS);
+    if (typeof staleCleanupTimer.unref === 'function') {
+        staleCleanupTimer.unref();
+    }
+
     function removeSocketFromRoom(socket, { roomId = socket.data.currentRoomId, emitLeaveEvent = true } = {}) {
         if (!roomId) {
             return null;
@@ -162,7 +219,7 @@ function createSocketHandler({
             }
         });
 
-        socket.on('join', ({ roomId, name, isAdmin } = {}, callback) => {
+        socket.on('join', ({ roomId, name, isAdmin, sessionId } = {}, callback) => {
             const respond = typeof callback === 'function' ? callback : () => {};
 
             try {
@@ -171,8 +228,20 @@ function createSocketHandler({
                     socketId: socket.id,
                     name,
                     isAdmin,
+                    sessionId,
                 });
                 const previousRoomId = socket.data.currentRoomId;
+
+                if (Array.isArray(joinResult.replacedSocketIds)) {
+                    joinResult.replacedSocketIds.forEach(replacedSocketId => {
+                        clearReactionTimer(joinResult.roomId, replacedSocketId);
+                        const previousSocket = io.sockets.sockets.get(replacedSocketId);
+                        if (previousSocket) {
+                            previousSocket.leave(joinResult.roomId);
+                            delete previousSocket.data.currentRoomId;
+                        }
+                    });
+                }
 
                 if (previousRoomId && previousRoomId !== joinResult.roomId) {
                     removeSocketFromRoom(socket, {
@@ -193,6 +262,7 @@ function createSocketHandler({
                     note: snapshot.note,
                     taskState: snapshot.taskState,
                     estimationMode: snapshot.estimationMode,
+                    heartbeatIntervalMs: HEARTBEAT_INTERVAL_MS,
                 });
 
                 io.to(joinResult.roomId).emit('user_event', {
@@ -204,6 +274,24 @@ function createSocketHandler({
                     ok: false,
                     error: error.message || 'UNKNOWN_ERROR',
                 });
+            }
+        });
+
+        socket.on('heartbeat', ({ roomId } = {}, callback) => {
+            const respond = typeof callback === 'function' ? callback : null;
+
+            try {
+                roomRegistry.recordHeartbeat(roomId, socket.id);
+                if (respond) {
+                    respond({ ok: true });
+                }
+            } catch (error) {
+                if (respond) {
+                    respond({
+                        ok: false,
+                        error: error.message || 'UNKNOWN_ERROR',
+                    });
+                }
             }
         });
 

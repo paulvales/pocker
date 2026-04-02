@@ -1,0 +1,5 @@
+{
+  "last_turn_at": "2026-04-02T18:42:26.739Z",
+  "turn_count": 5,
+  "last_agent_output": "Сделано: добавил heartbeat/TTL auto-cleanup для “зависших” участников и прогнал тесты + stress.\n\nИзм"
+}

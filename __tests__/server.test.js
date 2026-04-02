@@ -763,6 +763,50 @@ describe('socket server', () => {
     }
   });
 
+  test('deduplicates reconnecting participant by sessionId', async () => {
+    const adminClient = await connectClient(port);
+    const viewerClient = await connectClient(port);
+    const viewerSessionId = 'viewer-session-1';
+    let reconnectedClient = null;
+
+    try {
+      const createResult = await createRoom(adminClient, 'dedupe-session-room');
+      const roomId = createResult.room.id;
+
+      await joinRoom(adminClient, {
+        roomId,
+        name: 'Admin',
+        isAdmin: true,
+      });
+      await joinRoom(viewerClient, {
+        roomId,
+        name: 'Viewer',
+        sessionId: viewerSessionId,
+      });
+
+      viewerClient.close();
+      reconnectedClient = await connectClient(port);
+      const rejoinState = await joinRoom(reconnectedClient, {
+        roomId,
+        name: 'Viewer',
+        sessionId: viewerSessionId,
+      });
+
+      const viewers = rejoinState.players.filter(player => player.name === 'Viewer');
+      expect(viewers).toHaveLength(1);
+      expect(viewers[0]).toEqual(expect.objectContaining({
+        id: reconnectedClient.id,
+        sessionId: viewerSessionId,
+      }));
+    } finally {
+      adminClient.close();
+      viewerClient.close();
+      if (reconnectedClient) {
+        reconnectedClient.close();
+      }
+    }
+  });
+
   test('preserves the latest vote across repeated reopen-style reconnect cycles', async () => {
     const adminClient = await connectClient(port);
     let activeViewerClient = await connectClient(port);

@@ -45,6 +45,11 @@ function normalizeReaction(value) {
     return normalizedReaction;
 }
 
+function normalizeSessionId(sessionId) {
+    const normalizedSessionId = String(sessionId || '').trim();
+    return normalizedSessionId || null;
+}
+
 function normalizeRoomId(roomId) {
     return String(roomId || '')
         .normalize('NFKC')
@@ -204,25 +209,44 @@ function createRoomRegistry() {
         };
     }
 
-    function joinRoom({ roomId, socketId, name, isAdmin }) {
+    function joinRoom({ roomId, socketId, name, isAdmin, sessionId }) {
         const playerName = String(name || '').trim();
         if (!playerName) {
             throw new Error('NAME_REQUIRED');
         }
 
         const roomState = ensureRoomState(roomId, { createIfMissing: true });
+        const normalizedSessionId = normalizeSessionId(sessionId);
+        const replacedPlayers = normalizedSessionId
+            ? Object.values(roomState.players).filter(player =>
+                player.id !== socketId && player.sessionId && player.sessionId === normalizedSessionId)
+            : [];
+        const replacedSocketIds = replacedPlayers.map(player => player.id);
+        const replacementExclusions = new Set([socketId, ...replacedSocketIds]);
         const wantsAdmin = Boolean(isAdmin);
-        const alreadyHasAdmin = Object.values(roomState.players).some(player => player.isAdmin && player.id !== socketId);
+        const alreadyHasAdmin = Object.values(roomState.players)
+            .some(player => player.isAdmin && !replacementExclusions.has(player.id));
         if (wantsAdmin && alreadyHasAdmin) {
             throw new Error('ADMIN_ALREADY_EXISTS');
         }
 
+        let previousPlayerState = roomState.players[socketId];
+        if (!previousPlayerState && replacedPlayers.length) {
+            previousPlayerState = replacedPlayers[replacedPlayers.length - 1];
+        }
+        replacedSocketIds.forEach(replacedSocketId => {
+            delete roomState.players[replacedSocketId];
+        });
+
+        const now = Date.now();
         roomState.players[socketId] = {
             id: socketId,
             name: playerName,
-            vote: null,
-            reaction: null,
-            isAdmin: wantsAdmin,
+            vote: previousPlayerState ? previousPlayerState.vote : null,
+            reaction: previousPlayerState ? previousPlayerState.reaction : null,
+            isAdmin: wantsAdmin || Boolean(previousPlayerState?.isAdmin),
+            sessionId: normalizedSessionId,
+            lastHeartbeatAt: previousPlayerState?.lastHeartbeatAt || now,
         };
 
         return {
@@ -230,6 +254,7 @@ function createRoomRegistry() {
             room: roomState.room,
             roomState,
             player: roomState.players[socketId],
+            replacedSocketIds,
         };
     }
 
@@ -248,6 +273,17 @@ function createRoomRegistry() {
             roomState,
             player,
         };
+    }
+
+    function recordHeartbeat(roomId, socketId, heartbeatAt = Date.now()) {
+        const roomState = ensureRoomState(roomId);
+        const player = roomState.players[socketId];
+        if (!player) {
+            throw new Error('FORBIDDEN');
+        }
+
+        player.lastHeartbeatAt = heartbeatAt;
+        return player.lastHeartbeatAt;
     }
 
     function assertMembership(roomId, socketId, { requireAdmin = false } = {}) {
@@ -367,6 +403,34 @@ function createRoomRegistry() {
         };
     }
 
+    function removeStalePlayers({ ttlMs, now = Date.now(), isSocketActive = () => false } = {}) {
+        const safeTtlMs = Number(ttlMs);
+        if (!Number.isFinite(safeTtlMs) || safeTtlMs <= 0) {
+            throw new Error('STALE_TTL_INVALID');
+        }
+
+        const removedPlayers = [];
+        roomStates.forEach((roomState, roomId) => {
+            Object.values(roomState.players).forEach(player => {
+                const lastHeartbeatAt = Number(player.lastHeartbeatAt) || 0;
+                const ageMs = now - lastHeartbeatAt;
+                const activeSocket = isSocketActive(player.id);
+                if (activeSocket || ageMs <= safeTtlMs) {
+                    return;
+                }
+
+                delete roomState.players[player.id];
+                removedPlayers.push({
+                    roomId,
+                    roomState,
+                    player,
+                });
+            });
+        });
+
+        return removedPlayers;
+    }
+
     return {
         isReservedRoomId,
         isValidRoomId,
@@ -375,6 +439,7 @@ function createRoomRegistry() {
         getSnapshot,
         joinRoom,
         leaveRoom,
+        recordHeartbeat,
         assertMembership,
         updateNote,
         updateTaskList,
@@ -384,6 +449,7 @@ function createRoomRegistry() {
         recordReaction,
         revealVotes,
         resetRoom,
+        removeStalePlayers,
     };
 }
 
