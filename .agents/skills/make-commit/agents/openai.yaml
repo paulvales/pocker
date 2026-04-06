@@ -1,0 +1,4 @@
+interface:
+  display_name: "Make Commit"
+  short_description: "Prepare a commit message and semver bump"
+  default_prompt: "Use $make-commit to propose a short Russian commit message and the correct semver version bump for the current project changes."

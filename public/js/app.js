@@ -538,11 +538,53 @@ function emitWithAck(eventName, payload, timeoutMs = 4000) {
     });
 }
 
+function getAvailableVoteValues() {
+    return estimationMode === 'hours' ? allEstimateValues : originalPoints;
+}
+
+function ensureVoteButtons(values) {
+    const $voteButtons = $('#voteButtons');
+    // Keep vote buttons stable across room updates so an in-flight click is not lost on DOM rebuild.
+    const existingValues = $voteButtons.children('button').map(function () {
+        return $(this).attr('data-value') || $(this).text().trim();
+    }).get();
+    const needsRebuild = existingValues.length !== values.length
+        || existingValues.some((value, index) => value !== values[index]);
+
+    if (!needsRebuild) {
+        return;
+    }
+
+    $voteButtons.empty();
+    values.forEach(value => {
+        const isOriginal = originalPoints.includes(value);
+        const btn = $(`<button type="button" class="ui big button ${isOriginal ? 'orange' : ''}">${value}</button>`)
+            .attr('data-value', value);
+
+        btn.click(() => {
+            submitVote(value);
+        });
+
+        $voteButtons.append(btn);
+    });
+}
+
+function updateVoteButtonsSelectionState(currentVote) {
+    const normalizedCurrentVote = currentVote === null || typeof currentVote === 'undefined'
+        ? null
+        : String(currentVote);
+
+    $('#voteButtons button').each(function () {
+        const buttonValue = $(this).attr('data-value') || $(this).text().trim();
+        $(this).toggleClass('blue', buttonValue === normalizedCurrentVote);
+    });
+}
+
 function updateVoteButtonsPendingState() {
     const hasPendingVote = pendingVoteValue !== null;
 
     $('#voteButtons button').each(function () {
-        const buttonValue = $(this).text().trim();
+        const buttonValue = $(this).attr('data-value') || $(this).text().trim();
         const isPendingButton = hasPendingVote && buttonValue === pendingVoteValue;
         $(this)
             .prop('disabled', hasPendingVote)
@@ -1141,19 +1183,13 @@ function renderPlayers(players) {
         }
     }
     if (current) {
-        $('#voteButtons').empty().hide();
-        const availableValues = estimationMode === 'hours' ? allEstimateValues : originalPoints;
-        availableValues.forEach(p => {
-            const isOriginal = originalPoints.includes(p);
-            const btn = $(`<button class="ui big button ${isOriginal ? 'orange' : ''}">${p}</button>`);
-            btn.click(async () => {
-                await submitVote(p);
-            });
-            if (current.vote === p) btn.addClass('blue');
-            $('#voteButtons').append(btn);
-        });
+        const availableValues = getAvailableVoteValues();
+        ensureVoteButtons(availableValues);
+        updateVoteButtonsSelectionState(current.vote);
         $('#voteButtons').show();
         updateVoteButtonsPendingState();
+    } else {
+        $('#voteButtons').hide();
     }
     renderReactionPicker(current);
 
