@@ -75,7 +75,8 @@ socket.on('connect', () => {
 
             return null;
         })
-        .catch(() => {});
+        .catch(() => {
+        });
 });
 
 function stopHeartbeat() {
@@ -95,7 +96,7 @@ function startHeartbeat() {
         if (!socket.connected || !name || !roomId) {
             return;
         }
-        socket.emit('heartbeat', { roomId });
+        socket.emit('heartbeat', {roomId});
     }, heartbeatIntervalMs);
 }
 
@@ -275,11 +276,13 @@ async function copyRoomLink() {
         }
 
         $.toast({
+            position: 'top center',
             class: 'success',
             message: 'Ссылка комнаты скопирована'
         });
     } catch (error) {
         $.toast({
+            position: 'top center',
             class: 'error',
             message: 'Не удалось скопировать ссылку'
         });
@@ -389,7 +392,7 @@ function renderEstimationMode() {
     $('#averageVote .label').text(estimationMode === 'hours' ? 'Средняя оценка в часах' : 'Средняя оценка в поинтах');
 }
 
-function setAverageVoteDisplay(value = '0', { updateVisible = true } = {}) {
+function setAverageVoteDisplay(value = '0', {updateVisible = true} = {}) {
     const safeValue = String(value ?? '0');
     const $hidden = $('#averageVote1');
     const $value = $('#averageVote .value');
@@ -400,7 +403,7 @@ function setAverageVoteDisplay(value = '0', { updateVisible = true } = {}) {
     if (updateVisible) {
         $value.text(safeValue);
     }
-    if(isAdmin){
+    if (isAdmin) {
         $('#revealBtn').removeClass('disabled loading');
     }
     return hiddenChanged || (updateVisible && visibleChanged);
@@ -619,6 +622,7 @@ async function restoreSessionAfterReconnect({silent = false} = {}) {
         if (!result || !result.ok) {
             if (!silent) {
                 $.toast({
+                    position: 'top center',
                     class: 'error',
                     message: mapJoinError(result && result.error)
                 });
@@ -660,6 +664,7 @@ async function submitVote(value, {silent = false, retryOnForbidden = true} = {})
     if (!result || !result.ok) {
         if (!silent) {
             $.toast({
+                position: 'top center',
                 class: 'error',
                 message: mapVoteError(result && result.error)
             });
@@ -700,6 +705,7 @@ async function emitTaskSelection(direction) {
     const result = await emitWithAck('task_select', {roomId, direction});
     if (!result || !result.ok) {
         $.toast({
+            position: 'top center',
             class: 'error',
             message: mapTaskStateError(result && result.error)
         });
@@ -723,6 +729,7 @@ async function createRoom() {
     const roomSuffix = normalizeRoomSuffix($('#roomSuffix').val());
     if (!roomSuffix) {
         $.toast({
+            position: 'top center',
             class: 'warning',
             message: 'Введите постфикс для новой комнаты'
         });
@@ -735,6 +742,7 @@ async function createRoom() {
 
     if (!result || !result.ok || !result.room || !result.room.id) {
         $.toast({
+            position: 'top center',
             class: 'error',
             message: mapCreateRoomError(result && result.error)
         });
@@ -750,6 +758,7 @@ async function createRoom() {
 async function joinSession(newName, newIsAdmin) {
     if (!roomId) {
         $.toast({
+            position: 'top center',
             class: 'error',
             message: 'Сначала создайте комнату или откройте ссылку'
         });
@@ -767,6 +776,7 @@ async function joinSession(newName, newIsAdmin) {
 
     if (!result || !result.ok) {
         $.toast({
+            position: 'top center',
             class: 'error',
             message: mapJoinError(result && result.error)
         });
@@ -839,6 +849,7 @@ $(document).ready(async () => {
             setActiveRoom(roomFromUrl, roomMeta);
         } else {
             $.toast({
+                position: 'top center',
                 class: 'warning',
                 message: 'Ссылка комнаты выглядит некорректной'
             });
@@ -854,6 +865,7 @@ $('#createRoomBtn').click(async () => {
     const newName = $('#playerName').val().trim();
     if (!newName) {
         $.toast({
+            position: 'top center',
             class: 'warning',
             message: 'Введите имя перед созданием комнаты'
         });
@@ -875,6 +887,7 @@ $('#joinBtn').click(async () => {
     const newIsAdmin = $('#isAdmin').val() === '1';
     if (!newName) {
         $.toast({
+            position: 'top center',
             class: 'warning',
             message: 'Введите имя перед входом'
         });
@@ -921,6 +934,7 @@ $('#saveTaskListBtn').click(async function () {
     $btn.removeClass('loading disabled');
     if (!result || !result.ok) {
         $.toast({
+            position: 'top center',
             class: 'error',
             message: mapTaskStateError(result && result.error)
         });
@@ -929,6 +943,7 @@ $('#saveTaskListBtn').click(async function () {
 
     $('#taskListModal').modal('hide');
     $.toast({
+        position: 'top center',
         class: 'success',
         message: items.length ? 'Список задач сохранен' : 'Список задач очищен'
     });
@@ -947,6 +962,7 @@ $('#modePointsBtn').click(async () => {
     const result = await emitWithAck('set_estimation_mode', {roomId, mode: 'points'});
     if (!result || !result.ok) {
         $.toast({
+            position: 'top center',
             class: 'error',
             message: mapTaskStateError(result && result.error)
         });
@@ -958,6 +974,7 @@ $('#modeHoursBtn').click(async () => {
     const result = await emitWithAck('set_estimation_mode', {roomId, mode: 'hours'});
     if (!result || !result.ok) {
         $.toast({
+            position: 'top center',
             class: 'error',
             message: mapTaskStateError(result && result.error)
         });
@@ -976,6 +993,7 @@ $('#setStoryPointsBtn').click(function () {
     if (!isAdmin) return;
     if (!revealed) {
         $.toast({
+            position: 'top center',
             class: 'warning',
             message: 'Сначала нажмите "Показать", затем проставляйте Story points'
         });
@@ -988,6 +1006,7 @@ $('#setStoryPointsBtn').click(function () {
         $btn.removeClass('loading disabled');
         if (!result || !result.ok) {
             $.toast({
+                position: 'top center',
                 class: 'error',
                 message: mapStoryPointsError(result && result.error)
             });
@@ -996,6 +1015,7 @@ $('#setStoryPointsBtn').click(function () {
 
         const summarySuffix = result.issueSummary ? ` - ${result.issueSummary}` : '';
         $.toast({
+            position: 'top center',
             class: 'success',
             message: `${result.issueIdReadable}: Story points = ${result.average}${summarySuffix}`
         });
@@ -1124,6 +1144,7 @@ async function submitReaction(value) {
 
     if (!result || !result.ok) {
         $.toast({
+            position: 'top center',
             class: 'error',
             message: mapReactionError(result && result.error)
         });
@@ -1291,6 +1312,7 @@ socket.on('reveal_update', state => {
         } catch (e) {
         }
         $.toast({
+            position: 'top center',
             class: 'warning',
             message: `Оценки сброшены`
         });
@@ -1312,6 +1334,7 @@ socket.on('estimation_mode_update', nextMode => {
 });
 socket.on('user_event', ({message, type}) => {
     $.toast({
+        position: 'top center',
         class: type,
         message
     });
