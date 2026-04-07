@@ -6,6 +6,11 @@ const ROOM_ID_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N}_-]{0,63}$/u;
 const RESERVED_ROOM_IDS = new Set(['health', 'version', 'index-html', 'robots-txt', 'socket-io']);
 const SESSION_ID_STORAGE_KEY = 'pockerSessionId';
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 15000;
+const SOUND_EFFECT_PATHS = {
+    reveal: '/public/audio/reveal.mp3',
+    reset: '/public/audio/resetVotes.mp3',
+    reaction: '/public/audio/emotion.mp3'
+};
 
 let roomId = '';
 let currentRoomMeta = null;
@@ -29,6 +34,8 @@ let reactionPickerOpen = false;
 let currentReactionValue = null;
 let heartbeatIntervalMs = DEFAULT_HEARTBEAT_INTERVAL_MS;
 let heartbeatTimerId = null;
+const soundEffectCache = new Map();
+const activeSoundPlaybacks = new Set();
 const participantSessionId = getOrCreateParticipantSessionId();
 
 function createFallbackSessionId() {
@@ -51,6 +58,50 @@ function getOrCreateParticipantSessionId() {
         return createFallbackSessionId();
     }
 }
+
+function getSoundEffect(name) {
+    if (soundEffectCache.has(name)) {
+        return soundEffectCache.get(name);
+    }
+
+    const src = SOUND_EFFECT_PATHS[name];
+    if (!src) {
+        return null;
+    }
+
+    const audio = new Audio(src);
+    audio.preload = 'auto';
+    audio.load();
+    soundEffectCache.set(name, audio);
+    return audio;
+}
+
+function playSoundEffect(name) {
+    const baseAudio = getSoundEffect(name);
+    if (!baseAudio) {
+        return;
+    }
+
+    const playback = baseAudio.cloneNode(true);
+    playback.currentTime = 0;
+    activeSoundPlaybacks.add(playback);
+
+    const cleanup = () => {
+        activeSoundPlaybacks.delete(playback);
+        playback.onended = null;
+        playback.onerror = null;
+    };
+
+    playback.onended = cleanup;
+    playback.onerror = cleanup;
+
+    const playPromise = playback.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(cleanup);
+    }
+}
+
+Object.keys(SOUND_EFFECT_PATHS).forEach(getSoundEffect);
 
 socket.on('connect', () => {
     mySocketId = socket.id;
@@ -1251,6 +1302,7 @@ function renderPlayers(players) {
                 .attr('data-id', player.id);
             if (reactionChanged && player.reaction) {
                 triggerReactionAnimation(card);
+                playSoundEffect('reaction');
             }
             $players.append(card);
         } else {
@@ -1305,7 +1357,11 @@ socket.on('reactions_update', renderPlayers);
 socket.on('reveal_update', state => {
     revealed = state;
     socket.emit('get_players', roomId);
+    if (state) {
+        playSoundEffect('reveal');
+    }
     if (!state) {
+        playSoundEffect('reset');
         setAverageVoteDisplay('0');
         try {
             localStorage.removeItem(getVoteKey());
