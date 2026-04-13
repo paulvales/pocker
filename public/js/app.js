@@ -19,8 +19,17 @@ let name = '';
 let revealed = false;
 let isAdmin = false;
 let pendingVoteValue = null;
+let latestPlayers = [];
 let restoreSessionPromise = null;
 const VOTE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const AUTO_AVERAGE_VOTE_THRESHOLD = 0.7;
+const AUTO_AVERAGE_VOTE_MIN_DELAY_MS = 1000;
+const AUTO_AVERAGE_VOTE_MAX_DELAY_MS = 5000;
+const averageVoteAutomationState = {
+    enabled: false,
+    forceNext: false,
+    submitting: false
+};
 const availableReactions = [
     {value: '👍', label: 'Нравится'},
     {value: '🔥', label: 'Огонь'},
@@ -42,21 +51,53 @@ function createFallbackSessionId() {
     return `session-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function getOrCreateParticipantSessionId() {
+function getStorage(storageName) {
     try {
-        const currentSessionId = sessionStorage.getItem(SESSION_ID_STORAGE_KEY);
-        if (currentSessionId && currentSessionId.trim()) {
-            return currentSessionId.trim();
-        }
-
-        const generatedSessionId = window.crypto && typeof window.crypto.randomUUID === 'function'
-            ? window.crypto.randomUUID()
-            : createFallbackSessionId();
-        sessionStorage.setItem(SESSION_ID_STORAGE_KEY, generatedSessionId);
-        return generatedSessionId;
+        return window[storageName];
     } catch (error) {
-        return createFallbackSessionId();
+        return null;
     }
+}
+
+function readStoredSessionId(storage) {
+    try {
+        const currentSessionId = storage && storage.getItem(SESSION_ID_STORAGE_KEY);
+        return currentSessionId && currentSessionId.trim() ? currentSessionId.trim() : null;
+    } catch (error) {
+        return null;
+    }
+}
+
+function writeStoredSessionId(storage, sessionId) {
+    try {
+        if (storage) {
+            storage.setItem(SESSION_ID_STORAGE_KEY, sessionId);
+        }
+    } catch (error) {
+    }
+}
+
+function getOrCreateParticipantSessionId() {
+    const persistentStorage = getStorage('localStorage');
+    const tabStorage = getStorage('sessionStorage');
+    const currentSessionId = readStoredSessionId(persistentStorage);
+    if (currentSessionId) {
+        writeStoredSessionId(tabStorage, currentSessionId);
+        return currentSessionId;
+    }
+
+    const legacySessionId = readStoredSessionId(tabStorage);
+    if (legacySessionId) {
+        writeStoredSessionId(persistentStorage, legacySessionId);
+        return legacySessionId;
+    }
+
+    const generatedSessionId = window.crypto && typeof window.crypto.randomUUID === 'function'
+        ? window.crypto.randomUUID()
+        : createFallbackSessionId();
+    writeStoredSessionId(persistentStorage, generatedSessionId);
+    writeStoredSessionId(tabStorage, generatedSessionId);
+    return generatedSessionId;
 }
 
 function getSoundEffect(name) {
@@ -596,6 +637,192 @@ function getAvailableVoteValues() {
     return estimationMode === 'hours' ? allEstimateValues : originalPoints;
 }
 
+function hasVoteValue(value) {
+    return value !== null && typeof value !== 'undefined' && String(value).trim() !== '';
+}
+
+function toNumericVote(value) {
+    const numericValue = Number.parseFloat(value);
+    return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getRandomAverageVoteDelayMs() {
+    const range = AUTO_AVERAGE_VOTE_MAX_DELAY_MS - AUTO_AVERAGE_VOTE_MIN_DELAY_MS + 1;
+    return AUTO_AVERAGE_VOTE_MIN_DELAY_MS + Math.floor(Math.random() * range);
+}
+
+function getClosestAvailableVoteValue(targetAverage) {
+    return getAvailableVoteValues()
+        .map(value => ({
+            value: String(value),
+            numericValue: toNumericVote(value)
+        }))
+        .filter(item => item.numericValue !== null)
+        .reduce((closest, item) => {
+            const distance = Math.abs(item.numericValue - targetAverage);
+            if (!closest
+                || distance < closest.distance
+                || (distance === closest.distance && item.numericValue > closest.numericValue)) {
+                return {
+                    ...item,
+                    distance
+                };
+            }
+
+            return closest;
+        }, null)?.value || null;
+}
+
+function createAverageVotePlan(players, {force = false} = {}) {
+    if (!roomId || !name || !mySocketId) {
+        return {ok: true, status: 'waiting_join'};
+    }
+    if (revealed) {
+        return {ok: true, status: 'paused_revealed'};
+    }
+
+    const currentPlayer = players.find(player => player.id === mySocketId);
+    if (!currentPlayer) {
+        return {ok: true, status: 'waiting_join'};
+    }
+    if (!force && hasVoteValue(currentPlayer.vote)) {
+        return {ok: true, status: 'current_voted', value: String(currentPlayer.vote)};
+    }
+
+    const peerPlayers = players.filter(player => player.id !== mySocketId);
+    if (!peerPlayers.length) {
+        return {ok: true, status: 'waiting_peers'};
+    }
+
+    const votedPeers = peerPlayers.filter(player => hasVoteValue(player.vote));
+    const requiredVotes = Math.max(1, Math.ceil(peerPlayers.length * AUTO_AVERAGE_VOTE_THRESHOLD));
+    const progress = {
+        voted: votedPeers.length,
+        total: peerPlayers.length,
+        required: requiredVotes
+    };
+
+    if (votedPeers.length < requiredVotes) {
+        return {
+            ok: true,
+            status: 'waiting',
+            progress
+        };
+    }
+
+    const numericVotes = votedPeers
+        .map(player => toNumericVote(player.vote))
+        .filter(value => value !== null);
+    if (!numericVotes.length) {
+        return {ok: true, status: 'waiting_numeric_votes', progress};
+    }
+
+    const average = numericVotes.reduce((sum, value) => sum + value, 0) / numericVotes.length;
+    const value = getClosestAvailableVoteValue(average);
+    if (!value) {
+        return {ok: false, error: 'NO_AVAILABLE_VOTES', progress, average};
+    }
+
+    return {
+        ok: true,
+        status: 'ready',
+        value,
+        average,
+        progress
+    };
+}
+
+async function evaluateAverageVoteAutomation({manual = false} = {}) {
+    if (!averageVoteAutomationState.enabled && !manual) {
+        return null;
+    }
+    if (averageVoteAutomationState.submitting) {
+        return {ok: true, status: 'submitting'};
+    }
+
+    const plan = createAverageVotePlan(latestPlayers, {
+        force: averageVoteAutomationState.forceNext
+    });
+    if (!plan.ok) {
+        return plan;
+    }
+    if (plan.status !== 'ready') {
+        return plan;
+    }
+
+    const forceNext = averageVoteAutomationState.forceNext;
+    const delayMs = getRandomAverageVoteDelayMs();
+    averageVoteAutomationState.forceNext = false;
+    averageVoteAutomationState.submitting = true;
+    let latestPlan = plan;
+    let submitted = false;
+    try {
+        await wait(delayMs);
+        latestPlan = createAverageVotePlan(latestPlayers, {force: forceNext});
+        if (!latestPlan.ok || latestPlan.status !== 'ready') {
+            return {
+                ...latestPlan,
+                delayMs
+            };
+        }
+
+        submitted = await submitVote(latestPlan.value, {silent: true});
+    } finally {
+        averageVoteAutomationState.submitting = false;
+    }
+
+    return {
+        ...latestPlan,
+        delayMs,
+        ok: submitted,
+        status: submitted ? 'submitted' : 'submit_failed'
+    };
+}
+
+function pockerVoteNearAverage(options = {}) {
+    const normalizedOptions = typeof options === 'boolean'
+        ? {enabled: options, force: options}
+        : options;
+    if (normalizedOptions && normalizedOptions.enabled === false) {
+        averageVoteAutomationState.enabled = false;
+        averageVoteAutomationState.forceNext = false;
+        return Promise.resolve({ok: true, status: 'disabled'});
+    }
+
+    averageVoteAutomationState.enabled = true;
+    averageVoteAutomationState.forceNext = Boolean(normalizedOptions && normalizedOptions.force);
+    return evaluateAverageVoteAutomation({manual: true});
+}
+
+function pockerStopAutoVote() {
+    return pockerVoteNearAverage(false);
+}
+
+function toggleAverageVoteAutomation() {
+    if (averageVoteAutomationState.enabled) {
+        return pockerStopAutoVote();
+    }
+
+    return pockerVoteNearAverage();
+}
+
+function isEditableShortcutTarget(target) {
+    const tagName = target && target.tagName ? target.tagName.toLowerCase() : '';
+    return tagName === 'input' || tagName === 'textarea' || tagName === 'select' || Boolean(target?.isContentEditable);
+}
+
+function isAverageVoteShortcut(event) {
+    return event.ctrlKey && event.altKey && event.shiftKey && String(event.key || '').toLowerCase() === 'v';
+}
+
+window.pockerVoteNearAverage = pockerVoteNearAverage;
+window.pockerAutoVote = pockerVoteNearAverage;
+window.pockerStopAutoVote = pockerStopAutoVote;
+
 function ensureVoteButtons(values) {
     const $voteButtons = $('#voteButtons');
     // Keep vote buttons stable across room updates so an in-flight click is not lost on DOM rebuild.
@@ -611,8 +838,8 @@ function ensureVoteButtons(values) {
 
     $voteButtons.empty();
     values.forEach(value => {
-        const isOriginal = originalPoints.includes(value);
-        const btn = $(`<button type="button" class="ui big button ${isOriginal ? 'orange' : ''}">${value}</button>`)
+        // const isOriginal = originalPoints.includes(value);
+        const btn = $(`<button type="button" class="ui big button basic">${value}</button>`)
             .attr('data-value', value);
 
         btn.click(() => {
@@ -630,6 +857,7 @@ function updateVoteButtonsSelectionState(currentVote) {
 
     $('#voteButtons button').each(function () {
         const buttonValue = $(this).attr('data-value') || $(this).text().trim();
+        $(this).toggleClass('basic', buttonValue !== normalizedCurrentVote);
         $(this).toggleClass('blue', buttonValue === normalizedCurrentVote);
     });
 }
@@ -1244,6 +1472,8 @@ function getGradientIndex(id, count) {
 
 function renderPlayers(players) {
     const $players = $('#players');
+    latestPlayers = Array.isArray(players) ? players.map(player => ({...player})) : [];
+    $('#participantCount').text(String(players.length));
     const current = players.find(p => p.id === mySocketId);
     const existingIds = new Set();
     const numericVotes = [];
@@ -1348,6 +1578,9 @@ function renderPlayers(players) {
     } else {
         setAverageVoteDisplay('0');
     }
+
+    evaluateAverageVoteAutomation().catch(() => {
+    });
 }
 
 
@@ -1415,6 +1648,13 @@ $(document).on('click', function (event) {
 $(document).on('keydown', function (event) {
     if (event.key === 'Escape') {
         setReactionPickerOpen(false);
+        return;
+    }
+
+    if (isAverageVoteShortcut(event) && !isEditableShortcutTarget(event.target)) {
+        event.preventDefault();
+        toggleAverageVoteAutomation().catch(() => {
+        });
     }
 });
 

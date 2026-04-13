@@ -807,6 +807,53 @@ describe('socket server', () => {
     }
   });
 
+  test('deduplicates simultaneously open participant tabs by sessionId', async () => {
+    const adminClient = await connectClient(port);
+    const firstTabClient = await connectClient(port);
+    const secondTabClient = await connectClient(port);
+    const viewerSessionId = 'viewer-session-tabs-1';
+
+    try {
+      const createResult = await createRoom(adminClient, 'dedupe-tabs-room');
+      const roomId = createResult.room.id;
+
+      await joinRoom(adminClient, {
+        roomId,
+        name: 'Admin',
+        isAdmin: true,
+      });
+      await joinRoom(firstTabClient, {
+        roomId,
+        name: 'Viewer',
+        sessionId: viewerSessionId,
+      });
+
+      const secondTabState = await joinRoom(secondTabClient, {
+        roomId,
+        name: 'Viewer',
+        sessionId: viewerSessionId,
+      });
+
+      const viewers = secondTabState.players.filter(player => player.name === 'Viewer');
+      expect(viewers).toHaveLength(1);
+      expect(viewers[0]).toEqual(expect.objectContaining({
+        id: secondTabClient.id,
+        sessionId: viewerSessionId,
+      }));
+      await expect(emitWithAck(firstTabClient, 'vote', {
+        roomId,
+        value: '3',
+      })).resolves.toEqual({
+        ok: false,
+        error: 'FORBIDDEN',
+      });
+    } finally {
+      adminClient.close();
+      firstTabClient.close();
+      secondTabClient.close();
+    }
+  });
+
   test('preserves the latest vote across repeated reopen-style reconnect cycles', async () => {
     const adminClient = await connectClient(port);
     let activeViewerClient = await connectClient(port);

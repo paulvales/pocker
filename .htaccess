@@ -1,0 +1,19 @@
+Options -MultiViews
+
+RewriteEngine On
+
+# Serve existing files/directories as-is.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Keep canonical history URL behavior compatible with Node routing.
+RewriteRule ^history$ /history/ [R=302,L]
+RewriteRule ^history/?$ /history.html [L]
+
+# Room links are single-segment paths like /team-room/.
+RewriteCond %{REQUEST_URI} !^/public/ [NC]
+RewriteCond %{REQUEST_URI} !^/api/ [NC]
+RewriteCond %{REQUEST_URI} !^/socket\.io/ [NC]
+RewriteCond %{REQUEST_URI} !^/(favicon\.svg|robots\.txt)$ [NC]
+RewriteRule ^[^/]+/?$ /index.html [L]
