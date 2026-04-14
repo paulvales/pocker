@@ -109,12 +109,14 @@ describe('socket server', () => {
   });
 
   test('exposes health and version info over http and serves room paths', async () => {
+    const assetVersion = encodeURIComponent(packageJson.version);
     const health = await request(port, '/health');
     const version = await request(port, '/version');
     const home = await request(port, '/');
     const roomHome = await request(port, '/backend-sprint-42/');
     const roomRedirect = await request(port, '/backend-sprint-42');
     const historyPage = await request(port, '/history/');
+    const versionedAppScript = await request(port, `/public/js/app.js?v=${assetVersion}`);
     const historyApi = await request(port, '/api/estimation-history');
 
     expect(health.statusCode).toBe(200);
@@ -132,8 +134,12 @@ describe('socket server', () => {
     });
 
     expect(home.statusCode).toBe(200);
+    expect(home.headers['cache-control']).toBe('no-cache');
     expect(home.body).toContain(`v ${packageJson.version}`);
     expect(home.body).not.toContain('__APP_VERSION__');
+    expect(home.body).not.toContain('__ASSET_VERSION__');
+    expect(home.body).toContain(`/public/css/app.css?v=${assetVersion}`);
+    expect(home.body).toContain(`/public/js/app.js?v=${assetVersion}`);
     expect(home.body).toContain('id="historyTopBtn"');
 
     expect(roomHome.statusCode).toBe(200);
@@ -143,8 +149,14 @@ describe('socket server', () => {
     expect(roomRedirect.headers.location).toBe('/backend-sprint-42/');
 
     expect(historyPage.statusCode).toBe(200);
+    expect(historyPage.headers['cache-control']).toBe('no-cache');
     expect(historyPage.body).toContain('id="historyTable"');
     expect(historyPage.body).toContain(`v ${packageJson.version}`);
+    expect(historyPage.body).not.toContain('__ASSET_VERSION__');
+    expect(historyPage.body).toContain(`/public/vendor/semantic.min.css?v=${assetVersion}`);
+
+    expect(versionedAppScript.statusCode).toBe(200);
+    expect(versionedAppScript.headers['cache-control']).toBe('public, max-age=3600');
 
     expect(historyApi.statusCode).toBe(200);
     expect(JSON.parse(historyApi.body)).toEqual({

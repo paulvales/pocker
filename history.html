@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>История оценок - Scrum Poker</title>
     <meta name="description" content="Журнал сохранённых оценок по задачам с фильтрами по комнате, задаче, участнику, типу оценки и дате.">
-    <link rel="stylesheet" href="/public/vendor/semantic.min.css">
+    <link rel="stylesheet" href="/public/vendor/semantic.min.css?v=__ASSET_VERSION__">
     <link rel="shortcut icon" href="/favicon.svg" type="image/x-icon" sizes="32x32"/>
     <style>
         body {
@@ -260,8 +260,8 @@
     <footer class="footer-note" role="contentinfo">v __APP_VERSION__</footer>
 </main>
 
-<script src="/public/vendor/jquery-3.6.0.min.js"></script>
-<script src="/public/vendor/semantic.min.js"></script>
+<script src="/public/vendor/jquery-3.6.0.min.js?v=__ASSET_VERSION__"></script>
+<script src="/public/vendor/semantic.min.js?v=__ASSET_VERSION__"></script>
 <script>
     const isFileMode = window.location.protocol === 'file:';
     const apiBaseUrl = isFileMode ? 'https://pocker.webpaul.ru' : '';

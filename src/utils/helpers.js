@@ -7,7 +7,10 @@ function respondJson(res, statusCode, payload) {
 }
 
 function renderHtmlTemplate(template, appVersionLabel) {
-    return template.replace(/__APP_VERSION__/g, appVersionLabel);
+    const assetVersion = encodeURIComponent(String(appVersionLabel || 'dev'));
+    return template
+        .replace(/__APP_VERSION__/g, appVersionLabel)
+        .replace(/__ASSET_VERSION__/g, assetVersion);
 }
 
 function extractRoomIdFromPathname(pathname) {
@@ -34,7 +37,10 @@ function serveHtmlFile(res, fileName, rootDir, appVersionLabel) {
             return;
         }
 
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.writeHead(200, {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-cache',
+        });
         res.end(renderHtmlTemplate(data.toString('utf8'), appVersionLabel));
     });
 }
