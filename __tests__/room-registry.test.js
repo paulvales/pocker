@@ -356,6 +356,43 @@ describe('createRoomRegistry', () => {
         });
     });
 
+    describe('selectTask', () => {
+        test('switches task, resets estimation mode, and clears revealed votes', () => {
+            registry.createRoom({ roomSuffix: 'test' });
+            registry.joinRoom({
+                roomId: 'test',
+                socketId: 'socket1',
+                name: 'Alice',
+            });
+            registry.joinRoom({
+                roomId: 'test',
+                socketId: 'socket2',
+                name: 'Bob',
+            });
+            registry.updateTaskList('test', ['TASK-1', 'TASK-2']);
+            registry.recordVote('test', 'socket1', '5');
+            registry.recordVote('test', 'socket2', '8');
+            registry.setEstimationMode('test', 'hours');
+            registry.revealVotes('test');
+
+            const result = registry.selectTask('test', 1);
+
+            expect(result.taskState).toEqual({
+                items: ['TASK-1', 'TASK-2'],
+                selectedIndex: 1,
+            });
+            expect(result.estimationMode).toBe('points');
+            expect(result.revealed).toBe(false);
+            expect(result.revealChanged).toBe(true);
+            expect(result.players).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ name: 'Alice', vote: null }),
+                    expect.objectContaining({ name: 'Bob', vote: null }),
+                ]),
+            );
+        });
+    });
+
     describe('stale player cleanup', () => {
         test('updates player heartbeat timestamp', () => {
             registry.createRoom({ roomSuffix: 'test' });

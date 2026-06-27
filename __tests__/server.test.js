@@ -436,7 +436,7 @@ describe('socket server', () => {
     }
   });
 
-  test('syncs estimation mode and resets it to points on task switch', async () => {
+  test('syncs estimation mode and clears votes on task switch', async () => {
     const adminClient = await connectClient(port);
     const viewerClient = await connectClient(port);
     const items = [
@@ -475,8 +475,25 @@ describe('socket server', () => {
       });
       await expect(hoursModePromise).resolves.toBe('hours');
 
+      const votedPromise = waitForEvent(
+        adminClient,
+        'votes_update',
+        players => players.some(player => player.name === 'Viewer' && player.vote === '5'),
+      );
+      viewerClient.emit('vote', { roomId, value: '5' });
+      await expect(votedPromise).resolves.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Viewer', vote: '5' }),
+        ]),
+      );
+
       const resetModePromise = waitForEvent(viewerClient, 'estimation_mode_update', mode => mode === 'points');
       const taskStatePromise = waitForEvent(viewerClient, 'task_state_update', state => state.selectedIndex === 1);
+      const resetVotesPromise = waitForEvent(
+        viewerClient,
+        'votes_update',
+        players => players.every(player => player.vote === null),
+      );
 
       const selectResult = await emitWithAck(adminClient, 'task_select', {
         roomId,
@@ -496,6 +513,12 @@ describe('socket server', () => {
         items,
         selectedIndex: 1,
       });
+      await expect(resetVotesPromise).resolves.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Admin', vote: null }),
+          expect.objectContaining({ name: 'Viewer', vote: null }),
+        ]),
+      );
     } finally {
       adminClient.close();
       viewerClient.close();

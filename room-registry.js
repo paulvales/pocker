@@ -356,10 +356,14 @@ function createRoomRegistry() {
             selectedIndex: currentTaskState.selectedIndex + step,
         });
         roomState.estimationMode = 'points';
+        const votingState = resetVotingState(roomState);
 
         return {
             taskState: roomState.taskState,
             estimationMode: roomState.estimationMode,
+            players: votingState.players,
+            revealed: votingState.revealed,
+            revealChanged: votingState.revealChanged,
         };
     }
 

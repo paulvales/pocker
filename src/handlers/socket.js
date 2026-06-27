@@ -346,6 +346,10 @@ function createSocketHandler({
                 const selectResult = roomRegistry.selectTask(roomId, direction);
                 io.to(roomId).emit('task_state_update', selectResult.taskState);
                 io.to(roomId).emit('estimation_mode_update', selectResult.estimationMode);
+                if (selectResult.revealChanged) {
+                    io.to(roomId).emit('reveal_update', selectResult.revealed);
+                }
+                io.to(roomId).emit('votes_update', selectResult.players);
                 respond({
                     ok: true,
                     taskState: selectResult.taskState,

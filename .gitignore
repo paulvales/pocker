@@ -2,3 +2,6 @@
 .env
 /data/estimation-history.json
 /apps/
+.omx/
+.serena/
+.idea/
